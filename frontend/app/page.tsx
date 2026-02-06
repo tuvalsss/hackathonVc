@@ -540,30 +540,6 @@ export default function Home() {
           </div>
         </header>
 
-        {/* LINK Balance Warning */}
-        {stats && stats.totalRequests > 5 && stats.totalUpdates < stats.totalRequests / 2 && (
-          <div className="bg-red-900/30 border-2 border-red-700/50 rounded-xl p-4 mb-6">
-            <div className="flex items-start gap-3">
-              <span className="text-3xl">⛽</span>
-              <div>
-                <h3 className="font-bold text-red-400 mb-1">Low LINK Balance Detected</h3>
-                <p className="text-sm text-red-300 mb-2">
-                  Only {stats.totalUpdates} out of {stats.totalRequests} requests succeeded. 
-                  This usually means the Chainlink subscription is out of LINK tokens.
-                </p>
-                <a 
-                  href="https://functions.chain.link/sepolia/6239" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="inline-block px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg text-white font-semibold text-sm"
-                >
-                  🔗 Refill LINK Balance →
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
-
         {showOnboarding && (
           <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 rounded-xl p-6 border border-blue-700/50 mb-6">
             <div className="flex justify-between items-start mb-4">
