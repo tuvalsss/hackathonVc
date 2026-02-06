@@ -1,0 +1,1 @@
+return Functions.encodeString(JSON.stringify({priceETH:280000000000,priceBTC:9500000000000,score:80,triggered:true,reason:"Static demo",sources:"DON"}));

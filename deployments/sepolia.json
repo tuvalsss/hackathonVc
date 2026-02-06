@@ -1,0 +1,9 @@
+{
+  "network": "sepolia",
+  "contractAddress": "0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4",
+  "routerAddress": "0xb83E47C2bC239B3bf370bc41e1459A34b41238D0",
+  "donId": "fun-ethereum-sepolia-1",
+  "donIdBytes32": "0x66756e2d657468657265756d2d7365706f6c69612d3100000000000000000000",
+  "deployer": "0x726968519abd362EA6b865978Ac9c6B149A08499",
+  "timestamp": "2026-02-06T10:14:50.382Z"
+}
