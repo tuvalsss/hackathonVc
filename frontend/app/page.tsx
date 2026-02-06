@@ -11,12 +11,12 @@ declare global {
 
 const AUTO_SENTINEL_ABI = [
   "function sendRequest() external returns (bytes32)",
-  "function getLatestState() external view returns (tuple(uint256 timestamp, uint256 priceETH, uint256 priceBTC, uint256 aggregatedScore, bool thresholdTriggered, string decisionReason, string dataSources, bytes32 requestId))",
+  "function getLatestState() external view returns (uint256 timestamp, uint256 priceETH, uint256 priceBTC, uint256 aggregatedScore, bool thresholdTriggered, string decisionReason, string dataSources, bytes32 requestId)",
   "function getStatistics() external view returns (uint256 _totalUpdates, uint256 _totalThresholdTriggers, uint256 _totalRequests, uint256 _currentThreshold, uint256 _lastUpdateTime, bytes32 _lastRequestId)",
-  "function getRequestStatus(bytes32 requestId) external view returns (tuple(bool exists, bool fulfilled, bytes response, bytes err, uint256 timestamp, address requester))",
+  "function getRequestStatus(bytes32 requestId) external view returns (bool exists, bool fulfilled, bytes response, bytes err, uint256 timestamp)",
   "function threshold() external view returns (uint256)",
   "event RequestSent(bytes32 indexed requestId, address indexed requester, uint256 timestamp)",
-  "event RequestFulfilled(bytes32 indexed requestId, bytes response, bytes err, uint256 timestamp)",
+  "event Response(bytes32 indexed requestId, bytes response, bytes err)",
 ];
 
 interface SentinelState {
@@ -149,10 +149,10 @@ export default function Home() {
       try {
         attempts++;
         
-        // Check request status
+        // Check request status - returns (exists, fulfilled, response, err, timestamp)
         const status = await contract.getRequestStatus(requestId);
         
-        if (status.fulfilled) {
+        if (status[1]) { // fulfilled is index 1
           setWorkflowStatus('fulfilled');
           setError('✅ Request fulfilled successfully! Refreshing data...');
           await fetchData();
