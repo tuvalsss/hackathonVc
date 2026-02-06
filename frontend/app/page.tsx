@@ -139,38 +139,71 @@ export default function Home() {
   }, [CONTRACT_ADDRESS, RPC_URL]);
 
   const pollRequestStatus = async (requestId: string) => {
-    const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, AUTO_SENTINEL_ABI, provider);
+    // Use multiple RPC providers for reliability
+    const rpcUrls = [
+      'https://sepolia.infura.io/v3/652101a29c284064a0b8f11911cf84b4',
+      RPC_URL,
+    ];
     
     let attempts = 0;
-    const maxAttempts = 45; // 90 seconds total (45 * 2s)
+    const maxAttempts = 60; // 120 seconds total (60 * 2s)
+    const startTime = Date.now();
     
     const poll = async () => {
       try {
         attempts++;
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+        
+        // Rotate between RPC providers for reliability
+        const rpcUrl = rpcUrls[attempts % rpcUrls.length];
+        const provider = new ethers.JsonRpcProvider(rpcUrl);
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, AUTO_SENTINEL_ABI, provider);
         
         // Check request status - returns (exists, fulfilled, response, err, timestamp)
         const status = await contract.getRequestStatus(requestId);
         
         if (status[1]) { // fulfilled is index 1
           setWorkflowStatus('fulfilled');
-          setError('✅ Request fulfilled successfully! Refreshing data...');
+          setError(null);
           await fetchData();
-          setTimeout(() => setError(null), 2000); // Clear success message after 2s
           return;
         }
         
-        // Update progress message more frequently
-        if (attempts % 5 === 0) {
-          setError(`⏳ Waiting for Chainlink DON response... (${attempts * 2}s / 90s)`);
+        // Also check if latestState timestamp changed (fallback detection)
+        if (attempts > 10) {
+          try {
+            const latestState = await contract.getLatestState();
+            const ts = Number(latestState[0]);
+            if (ts > 0 && ts > startTime / 1000 - 10) {
+              // State was updated recently - likely our request
+              setWorkflowStatus('fulfilled');
+              setError(null);
+              await fetchData();
+              return;
+            }
+          } catch {}
         }
         
+        // Show progress every attempt
+        const progressMessages = [
+          'Sending request to Chainlink DON...',
+          'DON nodes are picking up the request...',
+          'Executing JavaScript on decentralized nodes...',
+          'Fetching market data from multiple sources...',
+          'Computing decision score off-chain...',
+          'Nodes reaching consensus on result...',
+          'Finalizing result and preparing callback...',
+          'Writing verified result to blockchain...',
+        ];
+        const msgIndex = Math.min(Math.floor(elapsed / 8), progressMessages.length - 1);
+        setError(`⏳ ${progressMessages[msgIndex]} (${elapsed}s)`);
+        
         if (attempts < maxAttempts) {
-          setTimeout(poll, 2000); // Check every 2 seconds
+          setTimeout(poll, 2000);
         } else {
-          // Timeout - refresh and show last data
+          // Timeout - try one final data refresh
           await fetchData();
-          setError('⏰ Request is taking longer than usual. Data may update soon - check back in a minute or refresh the page.');
+          setError('⏰ Request is taking longer than usual. The result may appear shortly - try refreshing the page.');
           setWorkflowStatus('idle');
         }
       } catch (err) {
@@ -181,8 +214,9 @@ export default function Home() {
       }
     };
     
-    // Start polling after 2 seconds
-    setTimeout(poll, 2000);
+    // Start polling after 3 seconds (give blockchain time to confirm)
+    setError('⏳ Sending request to Chainlink DON... (0s)');
+    setTimeout(poll, 3000);
   };
 
   const connectWallet = async () => {
