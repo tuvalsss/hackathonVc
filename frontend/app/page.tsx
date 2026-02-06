@@ -110,14 +110,15 @@ export default function Home() {
         contract.getStatistics()
       ]);
 
+      // Always set state, even if timestamp is 0
       setState({
         timestamp: Number(latestState[0]),
         priceETH: Number(latestState[1]) / 100,
         priceBTC: Number(latestState[2]) / 100,
         aggregatedScore: Number(latestState[3]),
         thresholdTriggered: latestState[4],
-        decisionReason: latestState[5],
-        dataSources: latestState[6],
+        decisionReason: latestState[5] || 'No data yet',
+        dataSources: latestState[6] || 'None',
         requestId: latestState[7]
       });
 
@@ -539,6 +540,30 @@ export default function Home() {
           </div>
         </header>
 
+        {/* LINK Balance Warning */}
+        {stats && stats.totalRequests > 5 && stats.totalUpdates < stats.totalRequests / 2 && (
+          <div className="bg-red-900/30 border-2 border-red-700/50 rounded-xl p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">⛽</span>
+              <div>
+                <h3 className="font-bold text-red-400 mb-1">Low LINK Balance Detected</h3>
+                <p className="text-sm text-red-300 mb-2">
+                  Only {stats.totalUpdates} out of {stats.totalRequests} requests succeeded. 
+                  This usually means the Chainlink subscription is out of LINK tokens.
+                </p>
+                <a 
+                  href="https://functions.chain.link/sepolia/6239" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg text-white font-semibold text-sm"
+                >
+                  🔗 Refill LINK Balance →
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
         {showOnboarding && (
           <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 rounded-xl p-6 border border-blue-700/50 mb-6">
             <div className="flex justify-between items-start mb-4">
@@ -894,12 +919,12 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
               Latest On-Chain Result
             </h2>
             
-            {loading ? (
+              {loading ? (
               <div className="animate-pulse space-y-3">
                 <div className="h-8 bg-slate-700 rounded"></div>
                 <div className="h-8 bg-slate-700 rounded"></div>
               </div>
-            ) : state && state.timestamp > 0 ? (
+            ) : state ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -930,11 +955,18 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
                 
                 <div className="text-xs text-gray-500 pt-2 border-t border-slate-700">
                   <p>Last Updated: {formatTime(state.timestamp)}</p>
+                  {state.timestamp === 0 && (
+                    <p className="text-yellow-400 text-xs mt-1">⚠️ Waiting for first fulfillment...</p>
+                  )}
                   <p>Request ID: {shortenHash(state.requestId)}</p>
                 </div>
               </div>
             ) : (
-              <p className="text-gray-500">No results yet. Execute a decision check to see data.</p>
+              <div className="text-center py-8">
+                <div className="text-4xl mb-3">📊</div>
+                <p className="text-gray-400 mb-2">No data available yet</p>
+                <p className="text-sm text-gray-500">Execute a decision check to see live market intelligence</p>
+              </div>
             )}
           </div>
 
