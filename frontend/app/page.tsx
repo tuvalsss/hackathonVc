@@ -90,6 +90,8 @@ export default function Home() {
   const [stats, setStats] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [progressMessage, setProgressMessage] = useState<string | null>(null);
+  const [progressPercent, setProgressPercent] = useState(0);
   const [workflowStatus, setWorkflowStatus] = useState<WorkflowStatus>('idle');
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -164,6 +166,8 @@ export default function Home() {
         
         if (status[1]) { // fulfilled is index 1
           setWorkflowStatus('fulfilled');
+          setProgressMessage(null);
+          setProgressPercent(100);
           setError(null);
           await fetchData();
           return;
@@ -175,8 +179,9 @@ export default function Home() {
             const latestState = await contract.getLatestState();
             const ts = Number(latestState[0]);
             if (ts > 0 && ts > startTime / 1000 - 10) {
-              // State was updated recently - likely our request
               setWorkflowStatus('fulfilled');
+              setProgressMessage(null);
+              setProgressPercent(100);
               setError(null);
               await fetchData();
               return;
@@ -184,26 +189,29 @@ export default function Home() {
           } catch {}
         }
         
-        // Show progress every attempt
-        const progressMessages = [
-          'Sending request to Chainlink DON...',
-          'DON nodes are picking up the request...',
-          'Executing JavaScript on decentralized nodes...',
-          'Fetching market data from multiple sources...',
-          'Computing decision score off-chain...',
-          'Nodes reaching consensus on result...',
-          'Finalizing result and preparing callback...',
-          'Writing verified result to blockchain...',
+        // Show progress every attempt - friendly messages
+        const steps = [
+          { msg: 'Request submitted to Chainlink DON', icon: '1' },
+          { msg: 'DON nodes picking up your request', icon: '2' },
+          { msg: 'Executing JavaScript on decentralized nodes', icon: '3' },
+          { msg: 'Fetching market data from multiple sources', icon: '4' },
+          { msg: 'Computing decision score off-chain', icon: '5' },
+          { msg: 'Nodes reaching consensus on result', icon: '6' },
+          { msg: 'Preparing callback to smart contract', icon: '7' },
+          { msg: 'Writing verified result to blockchain', icon: '8' },
         ];
-        const msgIndex = Math.min(Math.floor(elapsed / 8), progressMessages.length - 1);
-        setError(`⏳ ${progressMessages[msgIndex]} (${elapsed}s)`);
+        const stepIndex = Math.min(Math.floor(elapsed / 8), steps.length - 1);
+        const pct = Math.min(Math.round((elapsed / 65) * 100), 95);
+        setProgressMessage(steps[stepIndex].msg);
+        setProgressPercent(pct);
         
         if (attempts < maxAttempts) {
           setTimeout(poll, 2000);
         } else {
           // Timeout - try one final data refresh
           await fetchData();
-          setError('⏰ Request is taking longer than usual. The result may appear shortly - try refreshing the page.');
+          setProgressMessage(null);
+          setError('Request is taking longer than usual. The result may appear shortly - try refreshing the page.');
           setWorkflowStatus('idle');
         }
       } catch (err) {
@@ -215,7 +223,9 @@ export default function Home() {
     };
     
     // Start polling after 3 seconds (give blockchain time to confirm)
-    setError('⏳ Sending request to Chainlink DON... (0s)');
+    setProgressMessage('Request submitted to Chainlink DON');
+    setProgressPercent(5);
+    setError(null);
     setTimeout(poll, 3000);
   };
 
@@ -227,6 +237,8 @@ export default function Home() {
 
     try {
       setError(null);
+      setProgressMessage(null);
+      setProgressPercent(0);
       setWorkflowStatus('connecting');
 
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -237,7 +249,7 @@ export default function Home() {
       const chainId = Number(network.chainId);
       
       if (chainId !== 11155111) {
-        setError(`Switching to Sepolia testnet...`);
+        setProgressMessage('Switching to Sepolia testnet...');
         
         try {
           // Try to switch to Sepolia
@@ -252,12 +264,12 @@ export default function Home() {
           // Verify switch
           const newNetwork = await provider.getNetwork();
           if (Number(newNetwork.chainId) !== 11155111) {
-            setError('❌ Please approve network switch in MetaMask popup');
+            setError('Please approve network switch in MetaMask popup');
             setWorkflowStatus('error');
             return false;
           }
           
-          setError(null);
+          setProgressMessage(null);
           setWalletConnected(true);
           setWorkflowStatus('idle');
           return true;
@@ -285,16 +297,16 @@ export default function Home() {
               setWorkflowStatus('idle');
               return true;
             } catch (addError) {
-              setError('❌ Failed to add Sepolia network');
-              setWorkflowStatus('error');
-              return false;
+            setError('Failed to add Sepolia network');
+            setWorkflowStatus('error');
+            return false;
             }
           } else if (switchError.code === 4001) {
-            setError('❌ You rejected the network switch. Please approve it in MetaMask.');
+            setError('You rejected the network switch. Please approve it in MetaMask.');
             setWorkflowStatus('error');
             return false;
           } else {
-            setError(`❌ Failed to switch network. Please switch to Sepolia manually in MetaMask.`);
+            setError('Failed to switch network. Please switch to Sepolia manually in MetaMask.');
             setWorkflowStatus('error');
             return false;
           }
@@ -308,7 +320,7 @@ export default function Home() {
     } catch (err: any) {
       console.error('Connect error:', err);
       if (err.code === 4001) {
-        setError('❌ Connection rejected. Please approve in MetaMask.');
+        setError('Connection rejected. Please approve in MetaMask.');
       } else {
         setError(err.message || 'Failed to connect wallet');
       }
@@ -325,6 +337,8 @@ export default function Home() {
 
     try {
       setError(null);
+      setProgressMessage(null);
+      setProgressPercent(0);
       setWorkflowStatus('connecting');
       
       // Always verify connection and network before triggering
@@ -338,7 +352,7 @@ export default function Home() {
       const chainId = Number(network.chainId);
       
       if (chainId !== 11155111) {
-        setError(`Switching to Sepolia testnet...`);
+        setProgressMessage('Switching to Sepolia testnet...');
         
         try {
           // Try to switch to Sepolia
@@ -351,7 +365,7 @@ export default function Home() {
           
           const newNetwork = await provider.getNetwork();
           if (Number(newNetwork.chainId) !== 11155111) {
-            setError('❌ Please approve network switch in MetaMask and try again');
+            setError('Please approve network switch in MetaMask and try again');
             setWorkflowStatus('error');
             return;
           }
@@ -376,16 +390,16 @@ export default function Home() {
               });
               setWalletConnected(true);
             } catch (addError) {
-              setError('❌ Failed to add Sepolia network');
+              setError('Failed to add Sepolia network');
               setWorkflowStatus('error');
               return;
             }
           } else if (switchError.code === 4001) {
-            setError('❌ You rejected the network switch. Please try again and approve.');
+            setError('You rejected the network switch. Please try again and approve.');
             setWorkflowStatus('error');
             return;
           } else {
-            setError(`❌ Please switch to Sepolia manually in MetaMask`);
+            setError('Please switch to Sepolia manually in MetaMask');
             setWorkflowStatus('error');
             return;
           }
@@ -436,7 +450,7 @@ export default function Home() {
     }
     
     try {
-      setError('🤖 Translating your query with AI...');
+      setProgressMessage('Translating your query with AI...');
       setWorkflowStatus('connecting');
       
       // Call our API to translate the query using AI
@@ -450,7 +464,7 @@ export default function Home() {
       
       if (data.checkId) {
         setSelectedCheck(data.checkId);
-        setError(`✅ Mapped to: ${PREDEFINED_CHECKS.find(c => c.id === data.checkId)?.name} (via ${data.provider})`);
+        setProgressMessage(`Mapped to: ${PREDEFINED_CHECKS.find(c => c.id === data.checkId)?.name} (via ${data.provider})`);
         
         // Wait a moment to show the mapping
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -517,8 +531,8 @@ export default function Home() {
 
   const getStatusColor = () => {
     switch (workflowStatus) {
-      case 'connecting':
-      case 'sending': return 'text-yellow-400';
+      case 'connecting': return 'text-blue-300';
+      case 'sending': return 'text-blue-400';
       case 'pending': return 'text-blue-400';
       case 'fulfilled': return 'text-green-400';
       case 'error': return 'text-red-400';
@@ -530,7 +544,7 @@ export default function Home() {
     switch (workflowStatus) {
       case 'connecting': return 'Connecting wallet...';
       case 'sending': return 'Sending request...';
-      case 'pending': return 'Waiting for DON fulfillment...';
+      case 'pending': return 'Processing on Chainlink DON...';
       case 'fulfilled': return 'Request fulfilled!';
       case 'error': return 'Error occurred';
       default: return 'Ready';
@@ -854,27 +868,37 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
             
             <div className="space-y-4">
               {/* Status Progress */}
-              <div className="bg-slate-900/50 rounded-lg p-4">
+              <div className={`rounded-lg p-4 ${workflowStatus === 'fulfilled' ? 'bg-green-900/20 border border-green-700/40' : workflowStatus === 'error' ? 'bg-red-900/20 border border-red-700/40' : 'bg-slate-900/50 border border-slate-700/40'}`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className={`w-4 h-4 rounded-full ${workflowStatus === 'pending' || workflowStatus === 'sending' ? 'bg-yellow-500 animate-pulse' : workflowStatus === 'fulfilled' ? 'bg-green-500' : workflowStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'}`}></div>
-                  <div>
+                  <div className={`w-4 h-4 rounded-full flex-shrink-0 ${workflowStatus === 'pending' || workflowStatus === 'sending' || workflowStatus === 'connecting' ? 'bg-blue-500 animate-pulse' : workflowStatus === 'fulfilled' ? 'bg-green-500' : workflowStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'}`}></div>
+                  <div className="flex-1">
                     <div className={`font-bold text-lg ${getStatusColor()}`}>{getStatusText()}</div>
                     <div className="text-xs text-gray-400">
                       {workflowStatus === 'connecting' && 'Connecting to MetaMask...'}
                       {workflowStatus === 'sending' && 'Broadcasting transaction to Sepolia...'}
-                      {workflowStatus === 'pending' && 'Chainlink DON is fetching data and computing results...'}
+                      {workflowStatus === 'pending' && (progressMessage || 'Chainlink DON is processing your request...')}
                       {workflowStatus === 'fulfilled' && 'Results verified and stored on-chain!'}
-                      {workflowStatus === 'error' && 'An error occurred during execution'}
+                      {workflowStatus === 'error' && (error || 'An error occurred during execution')}
                     </div>
                   </div>
                 </div>
                 
-                {workflowStatus === 'pending' && (
-                  <div className="flex gap-2 text-xs">
-                    <div className="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse" style={{width: '70%'}}></div>
+                {(workflowStatus === 'pending' || workflowStatus === 'sending' || workflowStatus === 'connecting') && (
+                  <div className="space-y-2">
+                    <div className="flex gap-2 text-xs items-center">
+                      <div className="flex-1 bg-slate-700 rounded-full h-2.5 overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500 transition-all duration-1000 ease-out" 
+                          style={{width: `${Math.max(progressPercent, 5)}%`}}
+                        ></div>
+                      </div>
+                      <span className="text-gray-400 w-10 text-right">{progressPercent}%</span>
                     </div>
-                    <span className="text-gray-400">Est. 30-60s</span>
+                    {workflowStatus === 'pending' && (
+                      <div className="text-xs text-gray-500 text-center">
+                        Typical fulfillment time: 30-60 seconds
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -902,16 +926,25 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
                 </div>
               )}
               
-              {error && (
-                <div className="bg-red-900/20 border-2 border-red-700/50 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="text-2xl">⚠️</span>
+              {/* Progress Message (blue, friendly) */}
+              {progressMessage && workflowStatus !== 'fulfilled' && workflowStatus !== 'error' && (
+                <div className="bg-blue-900/15 border border-blue-700/30 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
+                    <div className="text-sm text-blue-300">{progressMessage}</div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Error Message (red, only for real errors) */}
+              {error && workflowStatus === 'error' && (
+                <div className="bg-red-900/15 border border-red-700/30 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="w-2 h-2 rounded-full bg-red-400 mt-1.5 flex-shrink-0"></div>
                     <div>
-                      <div className="font-semibold text-red-400 mb-1">Error Occurred</div>
                       <div className="text-sm text-red-300">{error}</div>
                       {error.includes('timeout') && (
-                        <div className="mt-2 text-xs text-gray-400 bg-slate-900/50 p-2 rounded">
-                          <strong>Troubleshooting:</strong> Request timeout can occur due to DON overload or insufficient LINK balance.
+                        <div className="mt-2 text-xs text-gray-400">
                           Check the transaction on Etherscan to verify if it was fulfilled.
                         </div>
                       )}
