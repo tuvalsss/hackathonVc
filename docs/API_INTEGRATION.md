@@ -10,12 +10,12 @@ AutoSentinel is a **deterministic decision engine** designed primarily for progr
 
 **Deployed Address (Sepolia):**
 ```
-0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4
+0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f
 ```
 
 **Explorer:**
 ```
-https://sepolia.etherscan.io/address/0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4
+https://sepolia.etherscan.io/address/0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f
 ```
 
 **Network:** Ethereum Sepolia Testnet (Chain ID: 11155111)
@@ -103,8 +103,7 @@ function getRequestStatus(bytes32 requestId) external view returns (
   bool fulfilled,
   bytes response,
   bytes err,
-  uint256 timestamp,
-  address requester
+  uint256 timestamp
 )
 ```
 
@@ -118,8 +117,7 @@ function getRequestStatus(bytes32 requestId) external view returns (
 - `fulfilled` - Whether Chainlink DON has fulfilled it
 - `response` - Raw response bytes
 - `err` - Error bytes (if any)
-- `timestamp` - Request timestamp
-- `requester` - Address that initiated the request
+- `timestamp` - Fulfillment timestamp
 
 ---
 
@@ -191,7 +189,7 @@ setInterval(monitorMarket, INTERVAL);
 // Listen for fulfillment events in real-time
 const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, provider);
 
-contract.on('RequestFulfilled', async (requestId, response, err, timestamp) => {
+contract.on('Response', async (requestId, response, err) => {
   console.log('Request fulfilled:', requestId);
   
   // Fetch latest state
@@ -421,7 +419,7 @@ Common errors and solutions:
 
 ## Support & Resources
 
-- **Contract Explorer:** https://sepolia.etherscan.io/address/0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4
+- **Contract Explorer:** https://sepolia.etherscan.io/address/0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f
 - **Chainlink Functions Docs:** https://docs.chain.link/chainlink-functions
 - **Subscription Management:** https://functions.chain.link/sepolia/6239
 - **GitHub Repository:** https://github.com/tuvalsss/hackathonVc

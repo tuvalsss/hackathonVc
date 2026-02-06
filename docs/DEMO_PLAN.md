@@ -102,7 +102,7 @@ Status: Request fulfilled! → State updated on-chain
 - Show the contract read functions
 
 **Action:**
-1. Open Etherscan: `https://sepolia.etherscan.io/address/0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4`
+1. Open Etherscan: `https://sepolia.etherscan.io/address/0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f`
 2. Click on the recent transaction
 3. Expand "Logs" to show events
 4. Go to "Read Contract" and call `getLatestState()`

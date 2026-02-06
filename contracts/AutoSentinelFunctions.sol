@@ -6,8 +6,10 @@ import {FunctionsRequest} from "@chainlink/contracts/src/v0.8/functions/v1_0_0/l
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 
 /**
- * @title AutoSentinelV3
- * @notice Ultra-lightweight callback. All parsing done offchain/in view functions.
+ * @title AutoSentinelFunctions
+ * @notice Autonomous Market Intelligence Engine powered by Chainlink Functions.
+ *         Ultra-lightweight callback stores raw bytes; all parsing is done in gas-free view functions.
+ * @dev Part of the Chainlink Hackathon "Convergence" submission by QuanticaLab & Tuval Zvigerbi
  */
 contract AutoSentinelFunctions is FunctionsClient, ConfirmedOwner {
     using FunctionsRequest for FunctionsRequest.Request;

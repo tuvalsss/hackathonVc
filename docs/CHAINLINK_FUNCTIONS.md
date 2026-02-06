@@ -27,13 +27,13 @@ AutoSentinel uses **Chainlink Functions** as the Chainlink Runtime Environment (
 
 3. FULFILLMENT
    └─▶ DON calls fulfillRequest() on contract
-   └─▶ Contract validates requestId
-   └─▶ Response decoded and stored in state
-   └─▶ Events emitted for transparency
+   └─▶ Raw response bytes stored (gas efficient)
+   └─▶ Request marked as fulfilled
+   └─▶ Response event emitted
 
 4. ON-CHAIN STATE
-   └─▶ SentinelState struct updated
-   └─▶ RequestId linked to state
+   └─▶ Raw response available on-chain
+   └─▶ View functions parse data (gas-free)
    └─▶ Statistics incremented
 ```
 
@@ -71,7 +71,8 @@ function sendRequest() external returns (bytes32 requestId) {
     );
     
     // Track request
-    requests[requestId] = RequestStatus({...});
+    s_requestExists[requestId] = true;
+    totalRequests++;
     emit RequestSent(requestId, msg.sender, block.timestamp);
 }
 ```
@@ -79,28 +80,23 @@ function sendRequest() external returns (bytes32 requestId) {
 ### Fulfillment Callback
 
 ```solidity
+// Ultra-lightweight callback - stores raw bytes only for gas efficiency
 function fulfillRequest(
     bytes32 requestId,
     bytes memory response,
     bytes memory err
 ) internal override {
-    // Validate request exists
-    if (!requests[requestId].exists) {
-        revert UnexpectedRequestID(requestId);
-    }
-    
-    // Update request status
-    requests[requestId].fulfilled = true;
-    requests[requestId].response = response;
-    
-    emit RequestFulfilled(requestId, response, err, block.timestamp);
-    
-    // Process response if no error
-    if (err.length == 0 && response.length > 0) {
-        _processResponse(requestId, response);
-    }
+    s_requestFulfilled[requestId] = true;
+    s_lastResponse = response;
+    s_lastError = err;
+    s_lastTimestamp = block.timestamp;
+    totalFulfilled++;
+    emit Response(requestId, response, err);
 }
 ```
+
+All heavy data parsing (prices, scores, reasons) is moved to gas-free view functions
+like `getLatestState()`, which parse the raw response string off-chain.
 
 ## JavaScript Source Code
 
@@ -174,28 +170,13 @@ event RequestSent(
 );
 ```
 
-### RequestFulfilled
+### Response
 Emitted when DON returns result:
 ```solidity
-event RequestFulfilled(
+event Response(
     bytes32 indexed requestId,
     bytes response,
-    bytes err,
-    uint256 timestamp
-);
-```
-
-### StateUpdated
-Emitted when contract state is updated:
-```solidity
-event StateUpdated(
-    bytes32 indexed requestId,
-    uint256 timestamp,
-    uint256 priceETH,
-    uint256 priceBTC,
-    uint256 aggregatedScore,
-    bool thresholdTriggered,
-    string dataSources
+    bytes err
 );
 ```
 

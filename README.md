@@ -3,7 +3,7 @@
 **Trustless Market Intelligence powered by Chainlink Functions with AI-Enhanced Interface**
 
 **Live Demo:** http://157.180.26.112:3005  
-**Smart Contract:** [0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4](https://sepolia.etherscan.io/address/0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4)  
+**Smart Contract:** [0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f](https://sepolia.etherscan.io/address/0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f)  
 **GitHub:** [github.com/tuvalsss/hackathonVc](https://github.com/tuvalsss/hackathonVc)
 
 ## Overview
@@ -136,7 +136,7 @@ Every execution produces:
 
 View on Etherscan:
 ```
-https://sepolia.etherscan.io/address/0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4
+https://sepolia.etherscan.io/address/0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f
 ```
 
 ## Quick Start
@@ -232,7 +232,7 @@ interface IAutoSentinel {
 }
 
 contract MyProtocol {
-    IAutoSentinel sentinel = IAutoSentinel(0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4);
+    IAutoSentinel sentinel = IAutoSentinel(0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f);
     
     function checkMarketSafety() external view returns (bool) {
         (, , , uint256 score, , , ,) = sentinel.getLatestState();
@@ -423,14 +423,14 @@ System has 3 fallbacks + keyword matching. Should always work.
 - Submission: `docs/SUBMISSION.md` - Hackathon submission details
 - Demo Plan: `docs/DEMO_PLAN.md` - Step-by-step demo walkthrough
 - Chainlink Functions: `docs/CHAINLINK_FUNCTIONS.md` - CRE implementation details
-- Deployment: `PRODUCTION_DEPLOYMENT.md` - Live deployment info
+- Deployment: Live at http://157.180.26.112:3005 via Docker
 
 ## Important Links
 
 | Resource | URL |
 |----------|-----|
 | Live Demo | http://157.180.26.112:3005 |
-| Smart Contract | https://sepolia.etherscan.io/address/0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4 |
+| Smart Contract | https://sepolia.etherscan.io/address/0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f |
 | GitHub Repository | https://github.com/tuvalsss/hackathonVc |
 | Chainlink Subscription | https://functions.chain.link/sepolia/6239 |
 | Sepolia Faucet (ETH) | https://sepoliafaucet.com/ |

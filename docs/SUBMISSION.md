@@ -57,7 +57,7 @@ AutoSentinel demonstrates the perfect fusion of Chainlink's trustless execution 
 |------|-----|
 | GitHub Repository | https://github.com/tuvalsss/hackathonVc |
 | Demo Video | *(To be recorded)* |
-| Contract (Sepolia) | https://sepolia.etherscan.io/address/0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4 |
+| Contract (Sepolia) | https://sepolia.etherscan.io/address/0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f |
 | Functions Subscription | https://functions.chain.link/sepolia/6239 |
 
 ---
@@ -104,11 +104,22 @@ contract AutoSentinelFunctions is FunctionsClient, ConfirmedOwner {
         return _sendRequest(req.encodeCBOR(), subscriptionId, gasLimit, donId);
     }
     
-    // Chainlink DON calls back with result
+    // Ultra-lightweight callback - stores raw bytes (gas efficient)
     function fulfillRequest(bytes32 requestId, bytes memory response, bytes memory err) 
         internal override {
-        // Parse JSON response and update on-chain state
-        _processResponse(requestId, response);
+        s_requestFulfilled[requestId] = true;
+        s_lastResponse = response;
+        s_lastError = err;
+        s_lastTimestamp = block.timestamp;
+        totalFulfilled++;
+        emit Response(requestId, response, err);
+    }
+    
+    // All parsing in gas-free view functions
+    function getLatestState() external view returns (...) {
+        string memory data = string(s_lastResponse);
+        // Parse priceETH, priceBTC, score, triggered, reason, sources
+        return (s_lastTimestamp, eth, btc, score, trig == 1, reason, sources, s_lastRequestId);
     }
 }
 ```
@@ -135,12 +146,13 @@ return Functions.encodeString(JSON.stringify({
 
 ### On-Chain State Changes
 
-The `fulfillRequest()` callback:
-1. Validates the requestId matches a pending request
-2. Parses the JSON response from DON
-3. Updates `currentState` struct with prices, score, reason
-4. Stores previous state in history
-5. Emits `StateUpdated` and `ThresholdTriggered` events
+The `fulfillRequest()` callback is designed to be ultra-lightweight for gas efficiency:
+1. Marks the requestId as fulfilled
+2. Stores the raw response bytes and any error bytes
+3. Updates the timestamp and increments the fulfilled counter
+4. Emits a `Response` event
+
+All heavy parsing (prices, scores, reasons) is done in `getLatestState()` and other view functions, which are gas-free when called off-chain.
 
 ### Gas Efficiency
 

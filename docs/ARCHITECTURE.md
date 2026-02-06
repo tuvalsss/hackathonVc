@@ -46,9 +46,9 @@ AutoSentinel uses **Chainlink Functions** as the Chainlink Runtime Environment (
 │  │  │                                                                   │  │  │
 │  │  └── fulfillRequest() ◀─────────────────────────────────────────────┤  │  │
 │  │      • Receives DON response                                        │  │  │
-│  │      • Decodes result                                               │  │  │
-│  │      • Updates SentinelState                                        │  │  │
-│  │      • Emits events                                                 │  │  │
+│  │      • Stores raw bytes (gas efficient)                             │  │  │
+│  │      • Marks request fulfilled                                      │  │  │
+│  │      • Emits Response event                                         │  │  │
 │  └─────────────────────────────────────────────────────────────────────┘  │  │
 └──────────────────────────────────────────────────────────────────────────────┘
                                        │
@@ -91,38 +91,39 @@ AutoSentinel uses **Chainlink Functions** as the Chainlink Runtime Environment (
 // Initiate Chainlink Functions request
 function sendRequest() external returns (bytes32 requestId)
 
-// Callback from DON (internal, called by router)
+// Ultra-lightweight callback from DON (internal, called by router)
+// Stores only raw bytes for gas efficiency
 function fulfillRequest(bytes32 requestId, bytes memory response, bytes memory err) internal override
 
-// View functions
-function getLatestState() external view returns (SentinelState memory)
-function getRequestStatus(bytes32 requestId) external view returns (RequestStatus memory)
+// View functions (gas-free, all parsing done here)
+function getLatestState() external view returns (
+    uint256 timestamp, uint256 priceETH, uint256 priceBTC,
+    uint256 aggregatedScore, bool thresholdTriggered,
+    string memory decisionReason, string memory dataSources, bytes32 requestId
+)
+function getRequestStatus(bytes32 requestId) external view returns (
+    bool exists, bool fulfilled, bytes memory response, bytes memory err, uint256 timestamp
+)
 function getStatistics() external view returns (...)
 ```
 
 **State Storage**:
 
 ```solidity
-struct SentinelState {
-    uint256 timestamp;
-    uint256 priceETH;         // 8 decimals
-    uint256 priceBTC;         // 8 decimals
-    uint256 aggregatedScore;  // 0-100
-    bool thresholdTriggered;
-    string decisionReason;
-    string dataSources;       // "CoinGecko,CoinCap"
-    bytes32 requestId;        // Links to Chainlink request
-}
+// Raw storage (written in fulfillRequest callback)
+bytes32 public s_lastRequestId;
+bytes public s_lastResponse;        // Raw DON response
+bytes public s_lastError;           // Raw DON error
+uint256 public s_lastTimestamp;
+uint256 public totalRequests;
+uint256 public totalFulfilled;
 
-struct RequestStatus {
-    bool exists;
-    bool fulfilled;
-    bytes response;
-    bytes err;
-    uint256 timestamp;
-    address requester;
-}
+mapping(bytes32 => bool) s_requestExists;
+mapping(bytes32 => bool) s_requestFulfilled;
 ```
+
+All data parsing (prices, scores, reasons) is performed in view functions, making
+callbacks extremely gas-efficient while providing full data access off-chain.
 
 ### 2. Chainlink Functions Source Code
 
@@ -186,10 +187,10 @@ struct RequestStatus {
            │
            ▼
 9. Contract:
-   ├── Validates requestId
-   ├── Decodes response
-   ├── Updates SentinelState
-   └── Emits events
+   ├── Marks requestId as fulfilled
+   ├── Stores raw response bytes
+   ├── Updates timestamp
+   └── Emits Response event
            │
            ▼
 10. Frontend polls and displays result
