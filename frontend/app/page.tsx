@@ -187,9 +187,56 @@ export default function Home() {
       const network = await provider.getNetwork();
       const chainId = Number(network.chainId);
       if (chainId !== 11155111) {
-        setError(`Please switch to Sepolia testnet. Current network: ${chainId}`);
-        setWorkflowStatus('error');
-        return;
+        setError(`Wrong network detected (${chainId}). Attempting to switch to Sepolia...`);
+        
+        try {
+          // Try to switch to Sepolia
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa36a7' }], // Sepolia = 11155111 = 0xaa36a7
+          });
+          
+          // Wait a bit for the switch
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Retry the workflow
+          const newNetwork = await provider.getNetwork();
+          if (Number(newNetwork.chainId) !== 11155111) {
+            setError('Please manually switch to Sepolia testnet in MetaMask');
+            setWorkflowStatus('error');
+            return;
+          }
+          
+          setError(null);
+        } catch (switchError: any) {
+          // If Sepolia is not added, try to add it
+          if (switchError.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0xaa36a7',
+                  chainName: 'Sepolia Testnet',
+                  nativeCurrency: {
+                    name: 'Sepolia ETH',
+                    symbol: 'ETH',
+                    decimals: 18
+                  },
+                  rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'],
+                  blockExplorerUrls: ['https://sepolia.etherscan.io']
+                }]
+              });
+            } catch (addError) {
+              setError('Failed to add Sepolia network. Please add manually in MetaMask.');
+              setWorkflowStatus('error');
+              return;
+            }
+          } else {
+            setError(`Please switch to Sepolia testnet manually in MetaMask. Current: ${chainId}`);
+            setWorkflowStatus('error');
+            return;
+          }
+        }
       }
 
       setWorkflowStatus('sending');
