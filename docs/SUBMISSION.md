@@ -1,17 +1,17 @@
 # AutoSentinel - Hackathon Submission
 
-## Submission Description (~250 words)
+## Submission Description
 
 ### Project Title
-**AutoSentinel: Autonomous Market Intelligence Engine**
+**AutoSentinel: AI-Enhanced Trustless Market Intelligence Engine**
 
 ### Description
 
-AutoSentinel is an autonomous decision engine that demonstrates meaningful use of the Chainlink Runtime Environment (CRE) by bridging off-chain market intelligence with verifiable on-chain execution.
+AutoSentinel is a deterministic decision engine that combines Chainlink Functions with AI-powered natural language processing to provide trustless market intelligence through three powerful interaction modes.
 
-**The Problem:** DeFi protocols need to make intelligent decisions based on real-world data, but running complex algorithms on-chain is prohibitively expensive, and centralized off-chain solutions create trust issues.
+**The Problem:** DeFi protocols, trading bots, and DAOs need intelligent decisions based on real-world data, but on-chain computation is expensive and centralized solutions break trustlessness.
 
-**Our Solution:** AutoSentinel leverages CRE's three core capabilities:
+**Our Solution:** AutoSentinel leverages Chainlink Functions + AI to create unprecedented flexibility:
 
 1. **HTTP Fetch Capability** - Pulls real-time price data from multiple sources (CoinGecko, CoinCap) for redundancy and manipulation resistance.
 
@@ -19,21 +19,35 @@ AutoSentinel is an autonomous decision engine that demonstrates meaningful use o
 
 3. **Chain Write Capability** - Executes transparent, verifiable state updates on-chain only when meaningful thresholds are exceeded, optimizing for gas efficiency.
 
-**Key Features:**
-- Multi-source data aggregation prevents single-point manipulation
-- Threshold-based execution minimizes unnecessary gas costs
-- Human-readable decision reasons stored on-chain for full auditability
-- Complete decision trail via smart contract events
-- Modern dashboard for real-time workflow visualization
+**Three Interaction Modes:**
+
+1. **Predefined Decision Checks** - 4 common patterns (Market Risk, Price Deviation, Volatility, Multi-Source Confirmation) for bots and protocols
+2. **API/Bot Interface** - Direct smart contract integration for external systems
+3. **AI-Powered Natural Language** - OpenAI/Google AI/Anthropic translate text queries to safe, predefined checks
+
+**Key Innovation:**
+AI enhances UX by translating natural language ("Is ETH safe to trade?") into structured, deterministic decision types, then executes trustlessly via Chainlink Functions. The AI translates but doesn't execute - maintaining predictability while improving accessibility.
+
+**Chainlink Functions Usage:**
+- ✅ **HTTP:** Fetches from CoinGecko + CoinCap APIs
+- ✅ **Compute:** Off-chain score calculation, multi-source aggregation
+- ✅ **Chain Write:** Updates on-chain state with verified results
+- ✅ **Trustless:** No single server controls computation
+
+**Real-World Value:**
+- Trading bots use API for risk scoring
+- DeFi protocols read on-chain scores for circuit breakers
+- DAOs query market conditions for treasury decisions
+- Users interact via natural language or predefined checks
 
 **Technical Stack:**
-- Solidity smart contract (FunctionsClient) on Sepolia testnet
-- Chainlink Functions for trustless off-chain computation
-- JavaScript source code executed on Chainlink DON
-- Next.js frontend dashboard with wallet integration
-- Free public APIs (CoinGecko, CoinCap)
+- Solidity 0.8.28 + Chainlink Functions
+- Next.js 14 + TypeScript frontend
+- OpenAI GPT-3.5 + Google Gemini + Anthropic Claude (AI layer)
+- Docker production deployment
+- Live demo: http://157.180.26.112:3005
 
-AutoSentinel showcases how CRE enables trustless, efficient, and intelligent automation that was previously impossible with traditional oracle solutions. Our approach demonstrates a practical pattern for any DeFi protocol needing autonomous, verifiable decision-making.
+AutoSentinel demonstrates the perfect fusion of Chainlink's trustless execution with AI-enhanced UX, solving real DeFi problems while maintaining deterministic reliability.
 
 ---
 
@@ -62,10 +76,15 @@ AutoSentinel showcases how CRE enables trustless, efficient, and intelligent aut
 
 ## Team Information
 
-| Name | Role | GitHub | Discord |
-|------|------|--------|---------|
-| [Name 1] | Full Stack Developer | @github | @discord |
-| [Name 2] | Smart Contract Developer | @github | @discord |
+**Organization:** QuanticaLab  
+**Lead Developer:** Tuval Zvigerbi  
+**GitHub:** https://github.com/tuvalsss  
+
+**Team Expertise:**
+- Full-stack blockchain development
+- Smart contract security and optimization
+- AI/ML integration in decentralized systems
+- Production infrastructure and DevOps
 
 ---
 
@@ -137,8 +156,62 @@ In a scenario checking prices every 5 minutes:
 
 ---
 
+## Feature Highlights for Judges
+
+### What You'll See in the Demo
+
+1. **Three Interaction Modes** - Unprecedented flexibility
+   - Click predefined checks OR
+   - Write natural language queries OR
+   - Integrate via API/smart contract
+
+2. **AI Translation Transparency**
+   - See which AI processed your query (OpenAI/Google/Anthropic)
+   - Visual badges showing AI provider used
+   - Clear mapping from text → predefined check
+
+3. **Real-Time Status Tracking**
+   - Progress bar with estimated time
+   - Transaction hash with Etherscan link
+   - Request ID for verification
+   - Color-coded status indicators
+
+4. **On-Chain Verification**
+   - Every result has cryptographic proof
+   - Viewable on Etherscan
+   - Includes timestamp, prices, score, reasoning
+
+5. **Professional UX**
+   - Comprehensive onboarding
+   - LINK balance warnings (if low)
+   - Automatic network switching
+   - Error handling with troubleshooting tips
+
+### Chainlink Functions Core Integration
+
+**Not just a wrapper!** Our system REQUIRES Chainlink Functions to operate:
+- Cannot fetch multi-source data without DON
+- Cannot aggregate trustlessly without decentralized compute
+- Cannot verify results without on-chain callbacks
+- Remove Chainlink Functions = system stops working
+
+This is **essential integration**, not superficial.
+
+---
+
 ## Acknowledgments
 
-- Chainlink team for CRE documentation and support
-- CoinGecko and CoinCap for free API access
-- Sepolia testnet faucets
+- **Chainlink** - For the powerful Functions platform and excellent documentation
+- **OpenAI** - For GPT-3.5 API enabling natural language translation
+- **Google** - For Gemini Pro API providing fallback AI capabilities
+- **Anthropic** - For Claude API as additional fallback
+- **CoinGecko** & **CoinCap** - For reliable, free market data APIs
+- **Ethereum Foundation** - For Sepolia testnet infrastructure
+
+---
+
+## Copyright
+
+© 2026 **QuanticaLab** & **Tuval Zvigerbi**. All Rights Reserved.
+
+Built with ❤️ using Chainlink Functions, OpenAI, Google AI, Anthropic Claude, and Ethereum.

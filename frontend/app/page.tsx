@@ -1062,14 +1062,98 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
           </a>
         </div>
 
-        <footer className="mt-12 text-center text-sm text-gray-500">
-          <p className="font-medium text-gray-400">AutoSentinel Decision Engine - Convergence: A Chainlink Hackathon</p>
-          <p className="mt-1">Powered by Chainlink Functions</p>
-          <p className="mt-1 text-xs">
-            Contract: <a href={`${EXPLORER_URL}/address/${CONTRACT_ADDRESS}`} className="text-blue-400 hover:underline" target="_blank">
-              {CONTRACT_ADDRESS.slice(0, 10)}...{CONTRACT_ADDRESS.slice(-8)}
-            </a>
-          </p>
+        <footer className="mt-12 border-t border-slate-700 pt-8 pb-4">
+          <div className="max-w-4xl mx-auto">
+            {/* Main Footer Content */}
+            <div className="text-center mb-6">
+              <h3 className="font-bold text-xl text-gray-300 mb-2">AutoSentinel Decision Engine</h3>
+              <p className="text-sm text-gray-400 mb-3">
+                Trustless Market Intelligence powered by Chainlink Functions
+              </p>
+              <div className="flex items-center justify-center gap-4 text-xs flex-wrap">
+                <span className="px-3 py-1 bg-blue-900/30 rounded-full">🤖 AI-Powered Translation</span>
+                <span className="px-3 py-1 bg-purple-900/30 rounded-full">⚡ Chainlink Functions</span>
+                <span className="px-3 py-1 bg-green-900/30 rounded-full">✅ On-Chain Verification</span>
+              </div>
+            </div>
+
+            {/* Technology Stack */}
+            <div className="bg-slate-800/30 rounded-lg p-4 mb-6">
+              <h4 className="text-sm font-semibold text-gray-400 mb-3 text-center">Built With</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-center">
+                <div>
+                  <div className="font-semibold text-blue-400">Chainlink Functions</div>
+                  <div className="text-gray-500">Decentralized Oracle Network</div>
+                </div>
+                <div>
+                  <div className="font-semibold text-green-400">OpenAI GPT-3.5</div>
+                  <div className="text-gray-500">Natural Language AI</div>
+                </div>
+                <div>
+                  <div className="font-semibold text-purple-400">Solidity 0.8.28</div>
+                  <div className="text-gray-500">Smart Contracts</div>
+                </div>
+                <div>
+                  <div className="font-semibold text-cyan-400">Next.js 14</div>
+                  <div className="text-gray-500">React Frontend</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contract Info */}
+            <div className="text-center mb-6 text-xs">
+              <div className="text-gray-500">Smart Contract (Sepolia Testnet)</div>
+              <a 
+                href={`${EXPLORER_URL}/address/${CONTRACT_ADDRESS}`} 
+                className="text-blue-400 hover:underline font-mono" 
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {CONTRACT_ADDRESS}
+              </a>
+            </div>
+
+            {/* Links */}
+            <div className="flex justify-center gap-6 mb-6 text-sm">
+              <a 
+                href="https://github.com/tuvalsss/hackathonVc" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-blue-400 transition-colors"
+              >
+                📂 GitHub
+              </a>
+              <a 
+                href={`${EXPLORER_URL}/address/${CONTRACT_ADDRESS}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-blue-400 transition-colors"
+              >
+                🔍 Etherscan
+              </a>
+              <a 
+                href="https://functions.chain.link/sepolia/6239" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-blue-400 transition-colors"
+              >
+                🔗 Chainlink
+              </a>
+            </div>
+
+            {/* Copyright */}
+            <div className="border-t border-slate-700 pt-4 text-center">
+              <div className="text-sm text-gray-400 mb-2">
+                <strong>Convergence: A Chainlink Hackathon</strong> - February 2026
+              </div>
+              <div className="text-xs text-gray-500">
+                © 2026 <strong className="text-gray-400">QuanticaLab</strong> & <strong className="text-gray-400">Tuval Zvigerbi</strong>. All Rights Reserved.
+              </div>
+              <div className="text-xs text-gray-600 mt-2">
+                Built with ❤️ using Chainlink Functions, OpenAI, Google AI, Anthropic Claude, and Ethereum
+              </div>
+            </div>
+          </div>
         </footer>
       </div>
     </main>
