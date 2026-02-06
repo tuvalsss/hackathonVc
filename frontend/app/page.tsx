@@ -142,27 +142,40 @@ export default function Home() {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, AUTO_SENTINEL_ABI, provider);
     
     let attempts = 0;
-    const maxAttempts = 40;
+    const maxAttempts = 60; // Increased to 3 minutes
     
     const poll = async () => {
       try {
+        attempts++;
+        
+        // Check request status
         const status = await contract.getRequestStatus(requestId);
         
         if (status.fulfilled) {
           setWorkflowStatus('fulfilled');
+          setError(null);
           await fetchData();
           return;
         }
         
-        attempts++;
+        // Update progress message
+        if (attempts % 10 === 0) {
+          setError(`⏳ Still waiting for Chainlink DON... (${attempts * 3}s elapsed)`);
+        }
+        
         if (attempts < maxAttempts) {
           setTimeout(poll, 3000);
         } else {
-          setError('Request timeout - please check Etherscan for status');
-          setWorkflowStatus('error');
+          // Timeout - but check if we have previous data
+          await fetchData();
+          setError('⏰ Request took longer than expected. Check Etherscan for final status. Showing last known data below.');
+          setWorkflowStatus('idle');
         }
       } catch (err) {
         console.error('Polling error:', err);
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 3000);
+        }
       }
     };
     
@@ -724,33 +737,71 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
         {/* Natural Language Interface */}
         {interactionMode === 'natural' && (
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 mb-6">
-            <h2 className="text-xl font-semibold mb-2">Natural Language Query</h2>
-            <div className="bg-yellow-900/20 border border-yellow-700/50 rounded p-3 text-sm mb-4">
-              <strong>Note:</strong> This is a helper layer that translates your text into predefined, safe decision checks. 
-              It does NOT allow arbitrary execution. The engine remains deterministic and rule-based.
+            <h2 className="text-xl font-semibold mb-2">🤖 AI-Powered Natural Language Query</h2>
+            <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 border border-purple-700/50 rounded p-4 text-sm mb-4">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="text-2xl">🧠</div>
+                <div>
+                  <strong className="text-purple-300">AI Translation Layer</strong>
+                  <p className="text-gray-400 text-xs mt-1">
+                    Your natural language query is processed by advanced AI (OpenAI GPT-3.5 → Google AI → Anthropic Claude)
+                    and translated into a safe, predefined decision check. The engine remains deterministic and rule-based.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-green-900/20 border border-green-700/50 rounded p-2">
+                  <div className="font-semibold text-green-400">1️⃣ OpenAI GPT-3.5</div>
+                  <div className="text-gray-400">Primary translator</div>
+                </div>
+                <div className="bg-blue-900/20 border border-blue-700/50 rounded p-2">
+                  <div className="font-semibold text-blue-400">2️⃣ Google Gemini</div>
+                  <div className="text-gray-400">First fallback</div>
+                </div>
+                <div className="bg-purple-900/20 border border-purple-700/50 rounded p-2">
+                  <div className="font-semibold text-purple-400">3️⃣ Anthropic Claude</div>
+                  <div className="text-gray-400">Second fallback</div>
+                </div>
+              </div>
             </div>
             
             <div className="space-y-3">
-              <textarea
-                value={naturalLanguageInput}
-                onChange={(e) => setNaturalLanguageInput(e.target.value)}
-                placeholder="Example: 'Check if there's high volatility in ETH prices' or 'Verify price consistency across sources'"
-                className="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-sm resize-none h-24"
-                disabled={workflowStatus === 'pending' || workflowStatus === 'sending'}
-              />
+              <div>
+                <label className="text-sm text-gray-400 mb-1 block">Enter your query in plain English:</label>
+                <textarea
+                  value={naturalLanguageInput}
+                  onChange={(e) => setNaturalLanguageInput(e.target.value)}
+                  placeholder="Examples:
+• 'Is it safe to trade right now?'
+• 'Check if there's high volatility in ETH'
+• 'Are prices accurate across exchanges?'
+• 'Verify BTC price from multiple sources'"
+                  className="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-sm resize-none h-32"
+                  disabled={workflowStatus === 'pending' || workflowStatus === 'sending' || workflowStatus === 'connecting'}
+                />
+              </div>
               
               <button
                 onClick={handleNaturalLanguage}
                 disabled={workflowStatus === 'pending' || workflowStatus === 'sending' || workflowStatus === 'connecting' || !naturalLanguageInput.trim()}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
               >
-                {workflowStatus === 'connecting' ? '🤖 Processing with AI...' : 'Execute Query'}
+                {workflowStatus === 'connecting' ? '🤖 AI Processing Query...' : '🚀 Execute AI-Powered Query'}
               </button>
               
               {selectedCheck && (
-                <p className="text-xs text-green-400">
-                  ✅ Mapped to: <strong>{PREDEFINED_CHECKS.find(c => c.id === selectedCheck)?.name}</strong>
-                </p>
+                <div className="bg-green-900/20 border border-green-700/50 rounded p-3">
+                  <div className="flex items-center gap-2 text-green-400">
+                    <span className="text-xl">✨</span>
+                    <div>
+                      <div className="font-semibold">AI Translation Complete!</div>
+                      <div className="text-xs text-gray-400">
+                        Mapped to: <strong className="text-green-300">{PREDEFINED_CHECKS.find(c => c.id === selectedCheck)?.name}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -759,38 +810,76 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
         {/* Workflow Status */}
         {(workflowStatus !== 'idle' || txHash) && (
           <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-6 border border-blue-700/50 mb-6">
-            <h2 className="text-xl font-semibold mb-3">Workflow Status</h2>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <span>⚡</span>
+              Workflow Execution Status
+            </h2>
             
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-400">Status:</span>
-                <span className={`font-semibold ${getStatusColor()}`}>{getStatusText()}</span>
+            <div className="space-y-4">
+              {/* Status Progress */}
+              <div className="bg-slate-900/50 rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-4 h-4 rounded-full ${workflowStatus === 'pending' || workflowStatus === 'sending' ? 'bg-yellow-500 animate-pulse' : workflowStatus === 'fulfilled' ? 'bg-green-500' : workflowStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'}`}></div>
+                  <div>
+                    <div className={`font-bold text-lg ${getStatusColor()}`}>{getStatusText()}</div>
+                    <div className="text-xs text-gray-400">
+                      {workflowStatus === 'connecting' && 'Connecting to MetaMask...'}
+                      {workflowStatus === 'sending' && 'Broadcasting transaction to Sepolia...'}
+                      {workflowStatus === 'pending' && 'Chainlink DON is fetching data and computing results...'}
+                      {workflowStatus === 'fulfilled' && 'Results verified and stored on-chain!'}
+                      {workflowStatus === 'error' && 'An error occurred during execution'}
+                    </div>
+                  </div>
+                </div>
+                
+                {workflowStatus === 'pending' && (
+                  <div className="flex gap-2 text-xs">
+                    <div className="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse" style={{width: '70%'}}></div>
+                    </div>
+                    <span className="text-gray-400">Est. 30-60s</span>
+                  </div>
+                )}
               </div>
               
+              {/* Transaction Details */}
               {txHash && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-400">Transaction:</span>
+                <div className="bg-slate-900/50 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Transaction Hash</div>
                   <a 
                     href={`${EXPLORER_URL}/tx/${txHash}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline font-mono"
+                    className="text-blue-400 hover:underline font-mono text-sm flex items-center gap-2"
                   >
                     {shortenHash(txHash)}
+                    <span className="text-xs">↗</span>
                   </a>
                 </div>
               )}
               
               {currentRequestId && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-400">Request ID:</span>
-                  <span className="text-purple-400 font-mono text-xs">{shortenHash(currentRequestId)}</span>
+                <div className="bg-slate-900/50 rounded-lg p-3">
+                  <div className="text-xs text-gray-400 mb-1">Chainlink Functions Request ID</div>
+                  <span className="text-purple-400 font-mono text-sm">{shortenHash(currentRequestId)}</span>
                 </div>
               )}
               
               {error && (
-                <div className="bg-red-900/20 border border-red-700/50 rounded p-3 text-sm text-red-400">
-                  {error}
+                <div className="bg-red-900/20 border-2 border-red-700/50 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">⚠️</span>
+                    <div>
+                      <div className="font-semibold text-red-400 mb-1">Error Occurred</div>
+                      <div className="text-sm text-red-300">{error}</div>
+                      {error.includes('timeout') && (
+                        <div className="mt-2 text-xs text-gray-400 bg-slate-900/50 p-2 rounded">
+                          <strong>Troubleshooting:</strong> Request timeout can occur due to DON overload or insufficient LINK balance.
+                          Check the transaction on Etherscan to verify if it was fulfilled.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
