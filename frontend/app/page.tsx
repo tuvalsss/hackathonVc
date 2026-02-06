@@ -46,6 +46,7 @@ export default function Home() {
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [walletConnected, setWalletConnected] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(true);
 
   const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '';
   const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.infura.io/v3/';
@@ -234,8 +235,92 @@ export default function Home() {
             <span className={`px-2 py-1 rounded ${walletConnected ? 'bg-green-900/50 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
               {walletConnected ? 'Wallet Connected' : 'Wallet Not Connected'}
             </span>
+            <button 
+              onClick={() => setShowOnboarding(!showOnboarding)}
+              className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded text-xs hover:bg-blue-800/50"
+            >
+              {showOnboarding ? 'Hide Guide' : 'Show Guide'}
+            </button>
           </div>
         </header>
+
+        {showOnboarding && (
+          <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 rounded-xl p-6 border border-blue-700/50 mb-6">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold text-blue-300">How to Use AutoSentinel</h2>
+              <button onClick={() => setShowOnboarding(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-2 text-purple-300">What This System Is</h3>
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  AutoSentinel is a <strong>trustless market intelligence engine</strong> that fetches real cryptocurrency 
+                  prices from multiple sources (CoinGecko + CoinCap), computes a decision score off-chain using 
+                  Chainlink's decentralized oracle network, and stores the verified result permanently on the 
+                  Ethereum blockchain.
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-semibold mb-2 text-purple-300">What Data You Receive</h3>
+                <ul className="text-gray-300 text-sm space-y-1">
+                  <li>✓ <strong>Real-time ETH & BTC prices</strong> - aggregated from 2 sources</li>
+                  <li>✓ <strong>Decision Score (0-100)</strong> - based on price deviation & volatility</li>
+                  <li>✓ <strong>Trigger Status</strong> - whether score exceeds threshold</li>
+                  <li>✓ <strong>Reasoning</strong> - human-readable explanation of the decision</li>
+                  <li>✓ <strong>Data Sources</strong> - which APIs provided the data</li>
+                  <li>✓ <strong>On-chain proof</strong> - verifiable transaction hash & request ID</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
+              <h3 className="text-lg font-semibold mb-3 text-green-300">How to Use (Step-by-Step)</h3>
+              <div className="grid md:grid-cols-4 gap-4 text-sm">
+                <div className="bg-slate-900/50 p-3 rounded">
+                  <div className="text-2xl mb-2">1️⃣</div>
+                  <p className="font-semibold mb-1">Connect Wallet</p>
+                  <p className="text-gray-400 text-xs">Install MetaMask and connect to Sepolia testnet</p>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded">
+                  <div className="text-2xl mb-2">2️⃣</div>
+                  <p className="font-semibold mb-1">Trigger Workflow</p>
+                  <p className="text-gray-400 text-xs">Click the button to send request to Chainlink DON</p>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded">
+                  <div className="text-2xl mb-2">3️⃣</div>
+                  <p className="font-semibold mb-1">Wait for DON</p>
+                  <p className="text-gray-400 text-xs">30-60 seconds for decentralized computation</p>
+                </div>
+                <div className="bg-slate-900/50 p-3 rounded">
+                  <div className="text-2xl mb-2">4️⃣</div>
+                  <p className="font-semibold mb-1">View Results</p>
+                  <p className="text-gray-400 text-xs">See verified data stored on-chain</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-lg p-4">
+              <h3 className="text-lg font-semibold mb-2 text-yellow-300">Why This Is Valuable</h3>
+              <div className="grid md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="font-semibold mb-1 text-green-400">🔒 Trustless</p>
+                  <p className="text-gray-400 text-xs">Computation runs on Chainlink's decentralized network, not a single server</p>
+                </div>
+                <div>
+                  <p className="font-semibold mb-1 text-blue-400">✅ Verifiable</p>
+                  <p className="text-gray-400 text-xs">Every result is stored on-chain with a unique request ID and transaction hash</p>
+                </div>
+                <div>
+                  <p className="font-semibold mb-1 text-purple-400">🌐 Decentralized</p>
+                  <p className="text-gray-400 text-xs">No single point of failure - data comes from multiple sources</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
 
         {error && (
           <div className="bg-red-900/50 border border-red-500 rounded-lg p-4 mb-6">
@@ -338,7 +423,13 @@ export default function Home() {
           </div>
 
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
-            <h2 className="text-xl font-semibold mb-4">Decision Score</h2>
+            <h2 className="text-xl font-semibold mb-2">Decision Score</h2>
+            <div className="text-xs text-gray-400 mb-4 bg-slate-900/50 p-2 rounded">
+              <strong>What this score means:</strong> Calculated from price volatility and deviation between data sources. 
+              Higher scores indicate higher market activity. When score exceeds threshold, the trigger activates.
+              <br/><strong>How to use it:</strong> Use this score to trigger automated actions (e.g., send alerts, execute trades, 
+              update other contracts) with verifiable, trustless data.
+            </div>
             
             {loading ? (
               <div className="animate-pulse"><div className="h-32 bg-slate-700 rounded"></div></div>
