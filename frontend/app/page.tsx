@@ -275,22 +275,73 @@ export default function Home() {
 
     try {
       setError(null);
+      setWorkflowStatus('connecting');
       
-      // First ensure wallet is connected and on correct network
-      if (!walletConnected) {
-        const connected = await connectWallet();
-        if (!connected) return;
-      }
-      
-      // Double check network
+      // Always verify connection and network before triggering
       const provider = new ethers.BrowserProvider(window.ethereum);
+      
+      // Request accounts
+      await provider.send('eth_requestAccounts', []);
+      
+      // Check network
       const network = await provider.getNetwork();
       const chainId = Number(network.chainId);
       
       if (chainId !== 11155111) {
-        setError('❌ Wrong network. Please click "Connect Wallet" button first.');
-        setWorkflowStatus('error');
-        return;
+        setError(`Switching to Sepolia testnet...`);
+        
+        try {
+          // Try to switch to Sepolia
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0xaa36a7' }],
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          const newNetwork = await provider.getNetwork();
+          if (Number(newNetwork.chainId) !== 11155111) {
+            setError('❌ Please approve network switch in MetaMask and try again');
+            setWorkflowStatus('error');
+            return;
+          }
+          
+          setWalletConnected(true);
+        } catch (switchError: any) {
+          if (switchError.code === 4902) {
+            try {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: '0xaa36a7',
+                  chainName: 'Sepolia Testnet',
+                  nativeCurrency: {
+                    name: 'Sepolia ETH',
+                    symbol: 'ETH',
+                    decimals: 18
+                  },
+                  rpcUrls: ['https://ethereum-sepolia-rpc.publicnode.com'],
+                  blockExplorerUrls: ['https://sepolia.etherscan.io']
+                }]
+              });
+              setWalletConnected(true);
+            } catch (addError) {
+              setError('❌ Failed to add Sepolia network');
+              setWorkflowStatus('error');
+              return;
+            }
+          } else if (switchError.code === 4001) {
+            setError('❌ You rejected the network switch. Please try again and approve.');
+            setWorkflowStatus('error');
+            return;
+          } else {
+            setError(`❌ Please switch to Sepolia manually in MetaMask`);
+            setWorkflowStatus('error');
+            return;
+          }
+        }
+      } else {
+        setWalletConnected(true);
       }
 
       setWorkflowStatus('sending');
@@ -358,11 +409,30 @@ export default function Home() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      window.ethereum.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
-        setWalletConnected(accounts.length > 0);
-      });
-    }
+    const checkConnection = async () => {
+      if (typeof window !== 'undefined' && window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length > 0) {
+            // Check if on correct network
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const network = await provider.getNetwork();
+            const chainId = Number(network.chainId);
+            
+            if (chainId === 11155111) {
+              setWalletConnected(true);
+            } else {
+              setWalletConnected(false);
+            }
+          }
+        } catch (err) {
+          console.error('Connection check error:', err);
+          setWalletConnected(false);
+        }
+      }
+    };
+    
+    checkConnection();
   }, []);
 
   const formatTime = (timestamp: number) => {
