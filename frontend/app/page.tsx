@@ -3,6 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
+
 const AUTO_SENTINEL_ABI = [
   "function sendRequest() external returns (bytes32)",
   "function getLatestState() external view returns (tuple(uint256 timestamp, uint256 priceETH, uint256 priceBTC, uint256 aggregatedScore, bool thresholdTriggered, string decisionReason, string dataSources, bytes32 requestId))",
@@ -34,102 +40,144 @@ interface Statistics {
 }
 
 type WorkflowStatus = 'idle' | 'connecting' | 'sending' | 'pending' | 'fulfilled' | 'error';
+type InteractionMode = 'predefined' | 'api' | 'natural';
+
+interface PredefinedCheck {
+  id: string;
+  name: string;
+  description: string;
+  category: 'risk' | 'price' | 'volatility' | 'deviation';
+  icon: string;
+}
+
+const PREDEFINED_CHECKS: PredefinedCheck[] = [
+  {
+    id: 'market_risk',
+    name: 'Market Risk Score',
+    description: 'Evaluate current market risk based on ETH/BTC price volatility and cross-source deviation',
+    category: 'risk',
+    icon: '⚠️'
+  },
+  {
+    id: 'price_deviation',
+    name: 'Price Deviation Check',
+    description: 'Detect significant price differences between CoinGecko and CoinCap data sources',
+    category: 'deviation',
+    icon: '📊'
+  },
+  {
+    id: 'volatility_alert',
+    name: 'Volatility Alert',
+    description: 'Monitor rapid price changes and trigger alerts when volatility exceeds threshold',
+    category: 'volatility',
+    icon: '📈'
+  },
+  {
+    id: 'multi_source_confirm',
+    name: 'Multi-Source Confirmation',
+    description: 'Verify data consistency across multiple oracles before making decisions',
+    category: 'price',
+    icon: '✅'
+  }
+];
 
 export default function Home() {
+  const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4';
+  const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
+  const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://sepolia.etherscan.io';
+
   const [state, setState] = useState<SentinelState | null>(null);
   const [stats, setStats] = useState<Statistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
-  
   const [workflowStatus, setWorkflowStatus] = useState<WorkflowStatus>('idle');
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [walletConnected, setWalletConnected] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(true);
-
-  const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '';
-  const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.infura.io/v3/';
-  const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://sepolia.etherscan.io';
+  const [interactionMode, setInteractionMode] = useState<InteractionMode>('predefined');
+  const [selectedCheck, setSelectedCheck] = useState<string | null>(null);
+  const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
+  const [showApiDocs, setShowApiDocs] = useState(false);
 
   const fetchData = useCallback(async () => {
-    if (!CONTRACT_ADDRESS) {
-      setError('Contract address not configured');
-      setLoading(false);
-      return;
-    }
-
     try {
       const provider = new ethers.JsonRpcProvider(RPC_URL);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, AUTO_SENTINEL_ABI, provider);
 
-      const currentState = await contract.getLatestState();
+      const [latestState, statistics] = await Promise.all([
+        contract.getLatestState(),
+        contract.getStatistics()
+      ]);
+
       setState({
-        timestamp: Number(currentState.timestamp),
-        priceETH: Number(currentState.priceETH) / 1e8,
-        priceBTC: Number(currentState.priceBTC) / 1e8,
-        aggregatedScore: Number(currentState.aggregatedScore),
-        thresholdTriggered: currentState.thresholdTriggered,
-        decisionReason: currentState.decisionReason,
-        dataSources: currentState.dataSources,
-        requestId: currentState.requestId,
+        timestamp: Number(latestState[0]),
+        priceETH: Number(latestState[1]) / 100,
+        priceBTC: Number(latestState[2]) / 100,
+        aggregatedScore: Number(latestState[3]),
+        thresholdTriggered: latestState[4],
+        decisionReason: latestState[5],
+        dataSources: latestState[6],
+        requestId: latestState[7]
       });
 
-      const statistics = await contract.getStatistics();
       setStats({
-        totalUpdates: Number(statistics._totalUpdates),
-        totalThresholdTriggers: Number(statistics._totalThresholdTriggers),
-        totalRequests: Number(statistics._totalRequests),
-        currentThreshold: Number(statistics._currentThreshold),
-        lastUpdateTime: Number(statistics._lastUpdateTime),
-        lastRequestId: statistics._lastRequestId,
+        totalUpdates: Number(statistics[0]),
+        totalThresholdTriggers: Number(statistics[1]),
+        totalRequests: Number(statistics[2]),
+        currentThreshold: Number(statistics[3]),
+        lastUpdateTime: Number(statistics[4]),
+        lastRequestId: statistics[5]
       });
 
-      setLastRefresh(new Date());
-      setError(null);
-    } catch (err: any) {
-      console.error('Fetch error:', err);
-      setError(err.message);
-    } finally {
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to fetch data:', err);
       setLoading(false);
     }
   }, [CONTRACT_ADDRESS, RPC_URL]);
 
-  const pollRequestStatus = useCallback(async (requestId: string) => {
-    if (!CONTRACT_ADDRESS) return;
-
+  const pollRequestStatus = async (requestId: string) => {
     const provider = new ethers.JsonRpcProvider(RPC_URL);
     const contract = new ethers.Contract(CONTRACT_ADDRESS, AUTO_SENTINEL_ABI, provider);
-
-    for (let i = 0; i < 60; i++) {
+    
+    let attempts = 0;
+    const maxAttempts = 40;
+    
+    const poll = async () => {
       try {
         const status = await contract.getRequestStatus(requestId);
+        
         if (status.fulfilled) {
           setWorkflowStatus('fulfilled');
           await fetchData();
           return;
         }
+        
+        attempts++;
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 3000);
+        } else {
+          setError('Request timeout - please check Etherscan for status');
+          setWorkflowStatus('error');
+        }
       } catch (err) {
-        console.error('Poll error:', err);
+        console.error('Polling error:', err);
       }
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
+    };
+    
+    setTimeout(poll, 3000);
+  };
 
-    setWorkflowStatus('error');
-    setError('Request timeout. Check back later.');
-  }, [CONTRACT_ADDRESS, RPC_URL, fetchData]);
-
-  const triggerWorkflow = async () => {
-    if (typeof window === 'undefined' || !window.ethereum) {
-      setError('Please install MetaMask to trigger workflows');
+  const triggerWorkflow = async (checkId?: string) => {
+    if (!window.ethereum) {
+      setError('Please install MetaMask');
       return;
     }
 
     try {
-      setWorkflowStatus('connecting');
       setError(null);
-      setTxHash(null);
-      setCurrentRequestId(null);
+      setWorkflowStatus('connecting');
 
       const provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send('eth_requestAccounts', []);
@@ -169,6 +217,34 @@ export default function Home() {
       setError(err.message || 'Failed to trigger workflow');
       setWorkflowStatus('error');
     }
+  };
+
+  const handlePredefinedCheck = (checkId: string) => {
+    setSelectedCheck(checkId);
+    triggerWorkflow(checkId);
+  };
+
+  const handleNaturalLanguage = () => {
+    if (!naturalLanguageInput.trim()) {
+      setError('Please enter a query');
+      return;
+    }
+    
+    // In a real implementation, this would translate via OpenAI to predefined checks
+    // For now, map to closest predefined check
+    const input = naturalLanguageInput.toLowerCase();
+    let mappedCheck = 'market_risk';
+    
+    if (input.includes('deviation') || input.includes('difference')) {
+      mappedCheck = 'price_deviation';
+    } else if (input.includes('volatil') || input.includes('rapid')) {
+      mappedCheck = 'volatility_alert';
+    } else if (input.includes('confirm') || input.includes('verify')) {
+      mappedCheck = 'multi_source_confirm';
+    }
+    
+    setSelectedCheck(mappedCheck);
+    triggerWorkflow(mappedCheck);
   };
 
   useEffect(() => {
@@ -223,15 +299,15 @@ export default function Home() {
 
   return (
     <main className="min-h-screen p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <header className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            AutoSentinel
+            AutoSentinel Decision Engine
           </h1>
           <p className="text-gray-400">
-            Autonomous Market Intelligence powered by Chainlink Functions
+            Trustless Market Intelligence powered by Chainlink Functions
           </p>
-          <div className="mt-2 flex items-center justify-center gap-4 text-sm">
+          <div className="mt-2 flex items-center justify-center gap-4 text-sm flex-wrap">
             <span className="text-gray-500">Network: Sepolia</span>
             <span className={`px-2 py-1 rounded ${walletConnected ? 'bg-green-900/50 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
               {walletConnected ? 'Wallet Connected' : 'Wallet Not Connected'}
@@ -248,135 +324,278 @@ export default function Home() {
         {showOnboarding && (
           <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 rounded-xl p-6 border border-blue-700/50 mb-6">
             <div className="flex justify-between items-start mb-4">
-              <h2 className="text-2xl font-bold text-blue-300">How to Use AutoSentinel</h2>
+              <h2 className="text-2xl font-bold text-blue-300">AutoSentinel Decision Engine</h2>
               <button onClick={() => setShowOnboarding(false)} className="text-gray-400 hover:text-white">✕</button>
             </div>
             
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div>
-                <h3 className="text-lg font-semibold mb-2 text-purple-300">What This System Is</h3>
+                <h3 className="text-lg font-semibold mb-2 text-purple-300">What This Engine Does</h3>
                 <p className="text-gray-300 text-sm leading-relaxed">
-                  AutoSentinel is a <strong>trustless market intelligence engine</strong> that fetches real cryptocurrency 
-                  prices from multiple sources (CoinGecko + CoinCap), computes a decision score off-chain using 
-                  Chainlink's decentralized oracle network, and stores the verified result permanently on the 
-                  Ethereum blockchain.
+                  AutoSentinel is a <strong>deterministic decision engine</strong> that executes predefined market analysis checks 
+                  using Chainlink's decentralized oracle network. It fetches real-time data from multiple sources, computes 
+                  decision scores trustlessly off-chain, and stores verified results permanently on-chain.
                 </p>
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold mb-2 text-purple-300">What Data You Receive</h3>
+                <h3 className="text-lg font-semibold mb-2 text-purple-300">Real-World Usage</h3>
                 <ul className="text-gray-300 text-sm space-y-1">
-                  <li>✓ <strong>Real-time ETH & BTC prices</strong> - aggregated from 2 sources</li>
-                  <li>✓ <strong>Decision Score (0-100)</strong> - based on price deviation & volatility</li>
-                  <li>✓ <strong>Trigger Status</strong> - whether score exceeds threshold</li>
-                  <li>✓ <strong>Reasoning</strong> - human-readable explanation of the decision</li>
-                  <li>✓ <strong>Data Sources</strong> - which APIs provided the data</li>
-                  <li>✓ <strong>On-chain proof</strong> - verifiable transaction hash & request ID</li>
+                  <li>✓ <strong>Smart Contracts</strong> - Read on-chain results for automated execution</li>
+                  <li>✓ <strong>Trading Bots</strong> - Trigger decisions based on verified market data</li>
+                  <li>✓ <strong>DAOs</strong> - Use trustless data for governance decisions</li>
+                  <li>✓ <strong>DeFi Protocols</strong> - Risk scoring and circuit breakers</li>
+                  <li>✓ <strong>Portfolio Managers</strong> - Automated rebalancing triggers</li>
                 </ul>
               </div>
             </div>
 
-            <div className="bg-slate-800/50 rounded-lg p-4 mb-4">
-              <h3 className="text-lg font-semibold mb-3 text-green-300">How to Use (Step-by-Step)</h3>
-              <div className="grid md:grid-cols-4 gap-4 text-sm">
-                <div className="bg-slate-900/50 p-3 rounded">
-                  <div className="text-2xl mb-2">1️⃣</div>
-                  <p className="font-semibold mb-1">Connect Wallet</p>
-                  <p className="text-gray-400 text-xs">Install MetaMask and connect to Sepolia testnet</p>
-                </div>
-                <div className="bg-slate-900/50 p-3 rounded">
-                  <div className="text-2xl mb-2">2️⃣</div>
-                  <p className="font-semibold mb-1">Trigger Workflow</p>
-                  <p className="text-gray-400 text-xs">Click the button to send request to Chainlink DON</p>
-                </div>
-                <div className="bg-slate-900/50 p-3 rounded">
-                  <div className="text-2xl mb-2">3️⃣</div>
-                  <p className="font-semibold mb-1">Wait for DON</p>
-                  <p className="text-gray-400 text-xs">30-60 seconds for decentralized computation</p>
-                </div>
-                <div className="bg-slate-900/50 p-3 rounded">
-                  <div className="text-2xl mb-2">4️⃣</div>
-                  <p className="font-semibold mb-1">View Results</p>
-                  <p className="text-gray-400 text-xs">See verified data stored on-chain</p>
-                </div>
-              </div>
-            </div>
-
             <div className="bg-slate-800/50 rounded-lg p-4">
-              <h3 className="text-lg font-semibold mb-2 text-yellow-300">Why This Is Valuable</h3>
+              <h3 className="text-lg font-semibold mb-2 text-yellow-300">Why This Matters</h3>
               <div className="grid md:grid-cols-3 gap-4 text-sm">
                 <div>
                   <p className="font-semibold mb-1 text-green-400">🔒 Trustless</p>
-                  <p className="text-gray-400 text-xs">Computation runs on Chainlink's decentralized network, not a single server</p>
+                  <p className="text-gray-400 text-xs">No single server controls computation - runs on decentralized Chainlink network</p>
                 </div>
                 <div>
                   <p className="font-semibold mb-1 text-blue-400">✅ Verifiable</p>
-                  <p className="text-gray-400 text-xs">Every result is stored on-chain with a unique request ID and transaction hash</p>
+                  <p className="text-gray-400 text-xs">Every decision is stored on-chain with cryptographic proof</p>
                 </div>
                 <div>
-                  <p className="font-semibold mb-1 text-purple-400">🌐 Decentralized</p>
-                  <p className="text-gray-400 text-xs">No single point of failure - data comes from multiple sources</p>
+                  <p className="font-semibold mb-1 text-purple-400">⚡ Deterministic</p>
+                  <p className="text-gray-400 text-xs">Same inputs always produce same outputs - predictable and reliable</p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
+        {/* Interaction Mode Selector */}
+        <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Choose Interaction Mode</h2>
+          <div className="grid md:grid-cols-3 gap-4">
+            <button
+              onClick={() => setInteractionMode('predefined')}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                interactionMode === 'predefined' 
+                  ? 'border-blue-500 bg-blue-900/30' 
+                  : 'border-slate-600 hover:border-slate-500'
+              }`}
+            >
+              <div className="text-2xl mb-2">🎯</div>
+              <h3 className="font-semibold mb-1">Predefined Checks</h3>
+              <p className="text-xs text-gray-400">Select from common decision types (recommended)</p>
+            </button>
+            
+            <button
+              onClick={() => setShowApiDocs(!showApiDocs)}
+              className="p-4 rounded-lg border-2 border-slate-600 hover:border-slate-500 transition-all"
+            >
+              <div className="text-2xl mb-2">🤖</div>
+              <h3 className="font-semibold mb-1">API / Bot Interface</h3>
+              <p className="text-xs text-gray-400">For developers integrating with external systems</p>
+            </button>
+            
+            <button
+              onClick={() => setInteractionMode('natural')}
+              className={`p-4 rounded-lg border-2 transition-all ${
+                interactionMode === 'natural' 
+                  ? 'border-purple-500 bg-purple-900/30' 
+                  : 'border-slate-600 hover:border-slate-500'
+              }`}
+            >
+              <div className="text-2xl mb-2">💬</div>
+              <h3 className="font-semibold mb-1">Natural Language</h3>
+              <p className="text-xs text-gray-400">Optional helper layer (translates to predefined checks)</p>
+            </button>
+          </div>
+        </div>
 
-        {error && (
-          <div className="bg-red-900/50 border border-red-500 rounded-lg p-4 mb-6">
-            <p className="text-red-300">{error}</p>
+        {/* API Documentation */}
+        {showApiDocs && (
+          <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-700 mb-6">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-semibold">API / Bot Integration Guide</h2>
+              <button onClick={() => setShowApiDocs(false)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-blue-300 mb-2">Contract Address</h3>
+                <code className="block bg-black/50 p-3 rounded text-sm text-green-400 font-mono">
+                  {CONTRACT_ADDRESS}
+                </code>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-blue-300 mb-2">Trigger Decision Check</h3>
+                <code className="block bg-black/50 p-3 rounded text-sm text-green-400 font-mono whitespace-pre">
+{`// Call this function to trigger Chainlink Functions request
+function sendRequest() external returns (bytes32 requestId)
+
+// Example using ethers.js:
+const contract = new ethers.Contract(address, abi, signer);
+const tx = await contract.sendRequest();
+const receipt = await tx.wait();
+// Extract requestId from RequestSent event`}
+                </code>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-blue-300 mb-2">Read Latest Result</h3>
+                <code className="block bg-black/50 p-3 rounded text-sm text-green-400 font-mono whitespace-pre">
+{`// Read the latest on-chain decision result
+function getLatestState() external view returns (
+  uint256 timestamp,
+  uint256 priceETH,
+  uint256 priceBTC,
+  uint256 aggregatedScore,  // 0-100 risk/decision score
+  bool thresholdTriggered,  // true if score > threshold
+  string decisionReason,    // human-readable explanation
+  string dataSources,       // APIs used
+  bytes32 requestId         // Chainlink Functions request ID
+)`}
+                </code>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-blue-300 mb-2">Bot Integration Example</h3>
+                <code className="block bg-black/50 p-3 rounded text-sm text-green-400 font-mono whitespace-pre">
+{`// Example: Trading bot reading decision score
+const state = await contract.getLatestState();
+if (state.aggregatedScore > 75 && state.thresholdTriggered) {
+  // High risk detected - trigger defensive action
+  await executeSafetyProtocol();
+}`}
+                </code>
+              </div>
+
+              <div className="bg-yellow-900/20 border border-yellow-700/50 rounded p-3 text-sm">
+                <strong className="text-yellow-400">Primary Use Case:</strong> External systems (bots, agents, smart contracts) 
+                call <code>sendRequest()</code> periodically or event-driven, then read <code>getLatestState()</code> to get 
+                trustless, verified market intelligence for automated decision-making.
+              </div>
+            </div>
           </div>
         )}
 
-        <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-6 border border-blue-700/50 mb-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold mb-1">Chainlink Functions Workflow</h2>
-              <p className="text-gray-400 text-sm">Trigger off-chain computation via Chainlink DON</p>
-            </div>
+        {/* Predefined Checks Interface */}
+        {interactionMode === 'predefined' && (
+          <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Predefined Decision Checks</h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Select a decision check to execute. Each check triggers a real Chainlink Functions request that fetches live data, 
+              computes results trustlessly, and updates on-chain state.
+            </p>
             
-            <div className="flex flex-col items-center gap-2">
-              <button
-                onClick={triggerWorkflow}
-                disabled={workflowStatus !== 'idle' && workflowStatus !== 'fulfilled' && workflowStatus !== 'error'}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {workflowStatus === 'idle' || workflowStatus === 'fulfilled' || workflowStatus === 'error' 
-                  ? 'Trigger Workflow' 
-                  : 'Processing...'}
-              </button>
-              <span className={`text-sm ${getStatusColor()}`}>{getStatusText()}</span>
+            <div className="grid md:grid-cols-2 gap-4">
+              {PREDEFINED_CHECKS.map(check => (
+                <button
+                  key={check.id}
+                  onClick={() => handlePredefinedCheck(check.id)}
+                  disabled={workflowStatus === 'pending' || workflowStatus === 'sending'}
+                  className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    selectedCheck === check.id
+                      ? 'border-green-500 bg-green-900/20'
+                      : 'border-slate-600 hover:border-slate-500 hover:bg-slate-700/30'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl">{check.icon}</div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold mb-1">{check.name}</h3>
+                      <p className="text-xs text-gray-400 mb-2">{check.description}</p>
+                      <span className="text-xs px-2 py-0.5 bg-blue-900/50 text-blue-300 rounded">
+                        {check.category}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
+        )}
 
-          {(txHash || currentRequestId) && (
-            <div className="mt-4 pt-4 border-t border-blue-700/30">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                {txHash && (
-                  <div>
-                    <span className="text-gray-400">Transaction: </span>
-                    <a href={`${EXPLORER_URL}/tx/${txHash}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">
-                      {shortenHash(txHash)}
-                    </a>
-                  </div>
-                )}
-                {currentRequestId && (
-                  <div>
-                    <span className="text-gray-400">Request ID: </span>
-                    <span className="font-mono text-purple-400">{shortenHash(currentRequestId)}</span>
-                  </div>
-                )}
-              </div>
+        {/* Natural Language Interface */}
+        {interactionMode === 'natural' && (
+          <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 mb-6">
+            <h2 className="text-xl font-semibold mb-2">Natural Language Query</h2>
+            <div className="bg-yellow-900/20 border border-yellow-700/50 rounded p-3 text-sm mb-4">
+              <strong>Note:</strong> This is a helper layer that translates your text into predefined, safe decision checks. 
+              It does NOT allow arbitrary execution. The engine remains deterministic and rule-based.
             </div>
-          )}
-        </div>
+            
+            <div className="space-y-3">
+              <textarea
+                value={naturalLanguageInput}
+                onChange={(e) => setNaturalLanguageInput(e.target.value)}
+                placeholder="Example: 'Check if there's high volatility in ETH prices' or 'Verify price consistency across sources'"
+                className="w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-sm resize-none h-24"
+                disabled={workflowStatus === 'pending' || workflowStatus === 'sending'}
+              />
+              
+              <button
+                onClick={handleNaturalLanguage}
+                disabled={workflowStatus === 'pending' || workflowStatus === 'sending' || !naturalLanguageInput.trim()}
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Execute Query
+              </button>
+              
+              <p className="text-xs text-gray-500">
+                Your query will be mapped to: <strong className="text-blue-400">{selectedCheck || 'market_risk'}</strong> check
+              </p>
+            </div>
+          </div>
+        )}
 
+        {/* Workflow Status */}
+        {(workflowStatus !== 'idle' || txHash) && (
+          <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 rounded-xl p-6 border border-blue-700/50 mb-6">
+            <h2 className="text-xl font-semibold mb-3">Workflow Status</h2>
+            
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-400">Status:</span>
+                <span className={`font-semibold ${getStatusColor()}`}>{getStatusText()}</span>
+              </div>
+              
+              {txHash && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-400">Transaction:</span>
+                  <a 
+                    href={`${EXPLORER_URL}/tx/${txHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:underline font-mono"
+                  >
+                    {shortenHash(txHash)}
+                  </a>
+                </div>
+              )}
+              
+              {currentRequestId && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-400">Request ID:</span>
+                  <span className="text-purple-400 font-mono text-xs">{shortenHash(currentRequestId)}</span>
+                </div>
+              )}
+              
+              {error && (
+                <div className="bg-red-900/20 border border-red-700/50 rounded p-3 text-sm text-red-400">
+                  {error}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Results Display */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <span className={`w-3 h-3 rounded-full ${state?.timestamp ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></span>
-              Current State
+              Latest On-Chain Result
             </h2>
             
             {loading ? (
@@ -404,7 +623,7 @@ export default function Home() {
                 
                 <div className="flex items-center gap-2">
                   <p className="text-sm text-gray-400">Data Sources:</p>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-wrap">
                     {state.dataSources.split(',').filter(Boolean).map((source, idx) => (
                       <span key={idx} className="px-2 py-0.5 bg-blue-900/50 text-blue-300 rounded text-xs">
                         {source}
@@ -419,17 +638,17 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              <p className="text-gray-500">No state data yet. Trigger the workflow to update.</p>
+              <p className="text-gray-500">No results yet. Execute a decision check to see data.</p>
             )}
           </div>
 
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-2">Decision Score</h2>
             <div className="text-xs text-gray-400 mb-4 bg-slate-900/50 p-2 rounded">
-              <strong>What this score means:</strong> Calculated from price volatility and deviation between data sources. 
-              Higher scores indicate higher market activity. When score exceeds threshold, the trigger activates.
-              <br/><strong>How to use it:</strong> Use this score to trigger automated actions (e.g., send alerts, execute trades, 
-              update other contracts) with verifiable, trustless data.
+              <strong>What this means:</strong> Calculated from price volatility and cross-source deviation. 
+              Higher scores indicate higher market activity/risk.
+              <br/><strong>How to use it:</strong> Smart contracts, bots, and DAOs can read this score on-chain 
+              to trigger automated actions with verifiable, trustless data.
             </div>
             
             {loading ? (
@@ -464,6 +683,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700 text-center">
             <p className="text-2xl font-bold text-blue-400">{stats?.totalUpdates || 0}</p>
@@ -487,59 +707,43 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 mb-6">
-          <h2 className="text-xl font-semibold mb-4">How Chainlink Functions Works</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4">
-              <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-blue-900/50 flex items-center justify-center text-2xl">1</div>
-              <h3 className="font-medium mb-1">Request Sent</h3>
-              <p className="text-sm text-gray-400">User triggers sendRequest()</p>
-            </div>
-            <div className="text-center p-4">
-              <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-purple-900/50 flex items-center justify-center text-2xl">2</div>
-              <h3 className="font-medium mb-1">DON Executes</h3>
-              <p className="text-sm text-gray-400">Chainlink nodes run JavaScript</p>
-            </div>
-            <div className="text-center p-4">
-              <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-cyan-900/50 flex items-center justify-center text-2xl">3</div>
-              <h3 className="font-medium mb-1">Data Fetched</h3>
-              <p className="text-sm text-gray-400">CoinGecko + CoinCap APIs</p>
-            </div>
-            <div className="text-center p-4">
-              <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-green-900/50 flex items-center justify-center text-2xl">4</div>
-              <h3 className="font-medium mb-1">On-Chain Update</h3>
-              <p className="text-sm text-gray-400">Result stored in contract</p>
-            </div>
-          </div>
-        </div>
-
+        {/* Quick Actions */}
         <div className="flex flex-wrap gap-4 justify-center">
-          <button onClick={fetchData} disabled={loading} className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors disabled:opacity-50">
+          <button 
+            onClick={() => fetchData()} 
+            disabled={loading}
+            className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors disabled:opacity-50"
+          >
             {loading ? 'Refreshing...' : 'Refresh Data'}
           </button>
-          {CONTRACT_ADDRESS && (
-            <a href={`${EXPLORER_URL}/address/${CONTRACT_ADDRESS}`} target="_blank" rel="noopener noreferrer" className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors">
-              View Contract
-            </a>
-          )}
-          <a href="https://functions.chain.link/" target="_blank" rel="noopener noreferrer" className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors">
+          <a 
+            href={`${EXPLORER_URL}/address/${CONTRACT_ADDRESS}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
+          >
+            View Contract
+          </a>
+          <a 
+            href="https://functions.chain.link/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors"
+          >
             Chainlink Functions
           </a>
         </div>
 
         <footer className="mt-12 text-center text-sm text-gray-500">
-          <p className="font-medium text-gray-400">AutoSentinel - Convergence: A Chainlink Hackathon</p>
-          <p className="mt-1">Powered by Chainlink Functions (CRE)</p>
-          <p className="mt-1 text-xs">Contract: <a href={`${EXPLORER_URL}/address/${CONTRACT_ADDRESS}`} className="text-blue-400 hover:underline" target="_blank">{CONTRACT_ADDRESS?.slice(0,10)}...{CONTRACT_ADDRESS?.slice(-8)}</a></p>
-          {lastRefresh && <p className="mt-2 text-xs">Last refresh: {lastRefresh.toLocaleTimeString()}</p>}
+          <p className="font-medium text-gray-400">AutoSentinel Decision Engine - Convergence: A Chainlink Hackathon</p>
+          <p className="mt-1">Powered by Chainlink Functions</p>
+          <p className="mt-1 text-xs">
+            Contract: <a href={`${EXPLORER_URL}/address/${CONTRACT_ADDRESS}`} className="text-blue-400 hover:underline" target="_blank">
+              {CONTRACT_ADDRESS.slice(0, 10)}...{CONTRACT_ADDRESS.slice(-8)}
+            </a>
+          </p>
         </footer>
       </div>
     </main>
   );
-}
-
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
 }

@@ -1,1 +1,0 @@
-const price=2800;const btcPrice=95000;const score=80;return Functions.encodeString(JSON.stringify({priceETH:price*1e8,priceBTC:btcPrice*1e8,score:score,triggered:true,reason:"Success",sources:"DON"}));
