@@ -143,7 +143,7 @@ export default function Home() {
     const contract = new ethers.Contract(CONTRACT_ADDRESS, AUTO_SENTINEL_ABI, provider);
     
     let attempts = 0;
-    const maxAttempts = 60; // Increased to 3 minutes
+    const maxAttempts = 45; // 90 seconds total (45 * 2s)
     
     const poll = async () => {
       try {
@@ -154,33 +154,35 @@ export default function Home() {
         
         if (status.fulfilled) {
           setWorkflowStatus('fulfilled');
-          setError(null);
+          setError('✅ Request fulfilled successfully! Refreshing data...');
           await fetchData();
+          setTimeout(() => setError(null), 2000); // Clear success message after 2s
           return;
         }
         
-        // Update progress message
-        if (attempts % 10 === 0) {
-          setError(`⏳ Still waiting for Chainlink DON... (${attempts * 3}s elapsed)`);
+        // Update progress message more frequently
+        if (attempts % 5 === 0) {
+          setError(`⏳ Waiting for Chainlink DON response... (${attempts * 2}s / 90s)`);
         }
         
         if (attempts < maxAttempts) {
-          setTimeout(poll, 3000);
+          setTimeout(poll, 2000); // Check every 2 seconds
         } else {
-          // Timeout - but check if we have previous data
+          // Timeout - refresh and show last data
           await fetchData();
-          setError('⏰ Request took longer than expected. Check Etherscan for final status. Showing last known data below.');
+          setError('⏰ Request is taking longer than usual. Data may update soon - check back in a minute or refresh the page.');
           setWorkflowStatus('idle');
         }
       } catch (err) {
         console.error('Polling error:', err);
         if (attempts < maxAttempts) {
-          setTimeout(poll, 3000);
+          setTimeout(poll, 2000);
         }
       }
     };
     
-    setTimeout(poll, 3000);
+    // Start polling after 2 seconds
+    setTimeout(poll, 2000);
   };
 
   const connectWallet = async () => {
