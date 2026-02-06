@@ -1,5 +1,17 @@
 # AutoSentinel - Technical Architecture
 
+## What This System Does (Plain English)
+
+**AutoSentinel is an autonomous decision engine that:**
+1. **Triggers on demand** - A user clicks "Trigger Workflow" to start the process
+2. **Executes code off-chain** - JavaScript runs on Chainlink's decentralized nodes (DON), NOT on a centralized server
+3. **Fetches real data** - The code pulls ETH/BTC prices from CoinGecko and CoinCap APIs
+4. **Computes a decision** - Calculates a "decision score" based on price deviation and volatility
+5. **Returns to blockchain** - The result is sent back to our smart contract via `fulfillRequest()` callback
+6. **Stores verified state** - The contract stores prices, score, and reasoning permanently on-chain
+
+**Why this matters:** The computation happens on decentralized Chainlink nodes, not our servers. This means no single party can manipulate the results. The data and decision are cryptographically verified before being stored on-chain.
+
 ## System Overview
 
 AutoSentinel uses **Chainlink Functions** as the Chainlink Runtime Environment (CRE) to create a trustless bridge between off-chain data and on-chain state.

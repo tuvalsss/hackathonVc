@@ -65,7 +65,15 @@ AutoSentinel demonstrates **meaningful use of the Chainlink Runtime Environment 
 
 | Network | Contract Address | Explorer |
 |---------|-----------------|----------|
-| Sepolia | `[DEPLOYED_ADDRESS]` | [View on Etherscan](https://sepolia.etherscan.io/address/[DEPLOYED_ADDRESS]) |
+| Sepolia | `0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4` | [View on Etherscan](https://sepolia.etherscan.io/address/0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4) |
+
+### Chainlink Functions Configuration
+
+| Parameter | Value |
+|-----------|-------|
+| Subscription ID | 6239 |
+| DON ID | `fun-ethereum-sepolia-1` |
+| Router | `0xb83E47C2bC239B3bf370bc41e1459A34b41238D0` |
 
 ---
 
@@ -131,7 +139,7 @@ npm run trigger
 cd frontend
 npm install
 cp .env.example .env.local
-# Edit .env.local with CONTRACT_ADDRESS
+# .env.example already has the deployed contract address
 npm run dev
 ```
 

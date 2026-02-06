@@ -45,52 +45,37 @@
 
 ---
 
-### 1:30 - 2:30 | CRE Workflow Demo (60 seconds)
+### 1:30 - 2:30 | Chainlink Functions Demo (60 seconds)
 
 **Script:**
-> "Now let's see the CRE workflow in action.
+> "Now let's see Chainlink Functions in action from our frontend.
 >
-> When I run the workflow, you can see it:
-> 1. Fetches ETH and BTC prices from both CoinGecko and CoinCap
-> 2. Aggregates the data and checks for price deviations
-> 3. Calculates a decision score based on our algorithm
-> 4. Since the threshold is met, it executes the on-chain transaction
+> When I click 'Trigger Workflow':
+> 1. The contract sends a request to the Chainlink DON
+> 2. The DON executes our JavaScript code off-chain
+> 3. It fetches prices from CoinGecko and CoinCap APIs
+> 4. Computes the decision score
+> 5. Returns the result via the fulfillRequest callback
+> 6. The contract stores the verified result on-chain
 >
-> Notice how the decision reason explains WHY we triggered - in this case, it's because of [read actual reason from output]."
+> Watch the status change from 'Sending' to 'Pending' to 'Fulfilled'."
 
 **Visual:**
-- Terminal window running `npm run workflow:run`
-- Show the workflow output step by step
+- Frontend dashboard with "Trigger Workflow" button
+- Show status updates in real-time
+- Show transaction hash and request ID appearing
 
 **Action:**
-```bash
-# Run this command live
-cd cre-workflow
-npm run workflow:run
+1. Open frontend at `localhost:3000`
+2. Connect MetaMask to Sepolia
+3. Click "Trigger Workflow"
+4. Wait for DON fulfillment (30-60 seconds)
+
+**Expected Flow:**
 ```
-
-**Expected Output:**
-```
-============================================================
-AutoSentinel CRE Workflow Started
-============================================================
---- Step 1: Fetching Price Data ---
-ETH Price (CoinGecko): $2450.32
-ETH Price (CoinCap): $2448.50
-BTC Price (CoinGecko): $43210.00
-BTC Price (CoinCap): $43198.00
-
---- Step 2: Computing Decision ---
-Aggregated ETH Price: $2449.41
-Decision Score: 82/100
-Threshold (75): TRIGGERED
-Reason: Initial state update; High source deviation
-
---- Step 3: On-Chain Execution ---
-Transaction Hash: 0x1234...5678
-Block Number: 12345678
-Gas Used: 78543
-Explorer: https://sepolia.etherscan.io/tx/0x1234...
+Status: Sending request... → Transaction: 0xabc...
+Status: Waiting for DON fulfillment... → Request ID: 0xdef...
+Status: Request fulfilled! → State updated on-chain
 ```
 
 ---
@@ -117,7 +102,7 @@ Explorer: https://sepolia.etherscan.io/tx/0x1234...
 - Show the contract read functions
 
 **Action:**
-1. Open Etherscan: `https://sepolia.etherscan.io/address/[CONTRACT_ADDRESS]`
+1. Open Etherscan: `https://sepolia.etherscan.io/address/0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4`
 2. Click on the recent transaction
 3. Expand "Logs" to show events
 4. Go to "Read Contract" and call `getLatestState()`

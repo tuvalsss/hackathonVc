@@ -436,8 +436,9 @@ export default function Home() {
         </div>
 
         <footer className="mt-12 text-center text-sm text-gray-500">
-          <p className="font-medium text-gray-400">AutoSentinel - Chainlink Hackathon 2024</p>
+          <p className="font-medium text-gray-400">AutoSentinel - Convergence: A Chainlink Hackathon</p>
           <p className="mt-1">Powered by Chainlink Functions (CRE)</p>
+          <p className="mt-1 text-xs">Contract: <a href={`${EXPLORER_URL}/address/${CONTRACT_ADDRESS}`} className="text-blue-400 hover:underline" target="_blank">{CONTRACT_ADDRESS?.slice(0,10)}...{CONTRACT_ADDRESS?.slice(-8)}</a></p>
           {lastRefresh && <p className="mt-2 text-xs">Last refresh: {lastRefresh.toLocaleTimeString()}</p>}
         </footer>
       </div>

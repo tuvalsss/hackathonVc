@@ -6,32 +6,30 @@
 
 | Test | Status | Notes |
 |------|--------|-------|
-| Contract deploys successfully | [ ] | |
-| Owner is set correctly | [ ] | |
-| Authorized caller can update state | [ ] | |
-| Unauthorized caller cannot update state | [ ] | |
-| Rate limiting works (60s minimum) | [ ] | |
-| State history is recorded | [ ] | |
-| Statistics are updated correctly | [ ] | |
-| Events are emitted properly | [ ] | |
-| Threshold update works | [ ] | |
-| Ownership transfer works | [ ] | |
-| Invalid inputs are rejected | [ ] | |
+| Contract deploys successfully | [x] | 0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4 |
+| Owner is set correctly | [x] | ConfirmedOwner pattern |
+| FunctionsClient inheritance works | [x] | Inherits from @chainlink/contracts |
+| sendRequest() creates request | [x] | Returns requestId |
+| fulfillRequest() processes response | [x] | Updates currentState |
+| State history is recorded | [x] | stateHistory array |
+| Statistics are updated correctly | [x] | totalUpdates, totalRequests |
+| Events are emitted properly | [x] | RequestSent, RequestFulfilled, StateUpdated |
+| Threshold update works | [x] | setThreshold() onlyOwner |
+| Source code update works | [x] | setSourceCode() onlyOwner |
+| Config update works | [x] | setConfig() for DON ID, subscription |
 
-### CRE Workflow Tests
+### Chainlink Functions Tests
 
 | Test | Status | Notes |
 |------|--------|-------|
-| CoinGecko API fetch works | [ ] | |
-| CoinCap API fetch works | [ ] | |
-| Graceful degradation (one API fails) | [ ] | |
-| Price aggregation is correct | [ ] | |
-| Decision score calculation is accurate | [ ] | |
-| First run always triggers | [ ] | |
-| Threshold logic is correct | [ ] | |
-| On-chain execution succeeds | [ ] | |
-| Error handling works | [ ] | |
-| Logging is comprehensive | [ ] | |
+| sendRequest() creates valid request | [x] | Verified on Sepolia |
+| DON receives and processes request | [x] | Multiple successful responses |
+| fulfillRequest() callback works | [x] | Response stored on-chain |
+| Request tracking (requestId) works | [x] | RequestStatus struct updated |
+| Error handling for DON errors | [x] | err bytes stored in RequestStatus |
+| Source code can be updated by owner | [x] | setSourceCode() tested |
+| Subscription ID configured correctly | [x] | Subscription 6239 active |
+| Gas limit is sufficient | [x] | 300,000 gas configured |
 
 ### Frontend Tests
 
@@ -52,11 +50,11 @@
 
 | Test | Status | Notes |
 |------|--------|-------|
-| End-to-end workflow: Fetch → Compute → Execute | [ ] | |
-| Contract state matches workflow output | [ ] | |
-| Frontend reflects contract state | [ ] | |
-| Multiple consecutive workflows work | [ ] | |
-| Workflow handles network issues | [ ] | |
+| End-to-end: sendRequest → DON → fulfillRequest | [x] | Multiple successful runs |
+| Contract state updated from DON response | [x] | Verified via getLatestState() |
+| Frontend reads contract state | [x] | Displays prices, score, status |
+| Frontend triggers sendRequest() | [x] | MetaMask integration works |
+| Request status tracking works | [x] | Polls getRequestStatus() |
 
 ---
 
@@ -77,22 +75,23 @@
 
 | Task | Status | Notes |
 |------|--------|-------|
-| `npm install` completed | [ ] | |
-| `npx hardhat compile` succeeds | [ ] | |
-| Deploy to Sepolia successful | [ ] | |
-| Contract address recorded | [ ] | |
-| Contract verified on Etherscan | [ ] | |
-| Owner functions tested | [ ] | |
+| `npm install` completed | [x] | All dependencies installed |
+| `npx hardhat compile` succeeds | [x] | AutoSentinelFunctions compiled |
+| Deploy to Sepolia successful | [x] | TX confirmed |
+| Contract address recorded | [x] | 0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4 |
+| Contract verified on Etherscan | [ ] | Optional - can verify with hardhat verify |
+| Owner functions tested | [x] | setConfig, setSourceCode, setThreshold |
 
-### Workflow Deployment
+### Chainlink Functions Setup
 
 | Task | Status | Notes |
 |------|--------|-------|
-| `cd cre-workflow && npm install` | [ ] | |
-| CONTRACT_ADDRESS set in .env | [ ] | |
-| `npm run test` passes | [ ] | |
-| `npm run start` executes successfully | [ ] | |
-| Transaction confirmed on Etherscan | [ ] | |
+| Subscription created on functions.chain.link | [x] | ID: 6239 |
+| Subscription funded with LINK | [x] | 20 LINK balance |
+| Contract added as consumer | [x] | TX: 0xde1e508bf99080842895edbfb9c3c8a8a17cec2b5dbb31fa825fa71ec8f8b263 |
+| DON ID configured on contract | [x] | fun-ethereum-sepolia-1 |
+| Source code set on contract | [x] | Dynamic or static source |
+| Test request sent and fulfilled | [x] | Multiple successful responses |
 
 ### Frontend Deployment
 
