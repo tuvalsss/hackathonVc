@@ -82,7 +82,7 @@ const PREDEFINED_CHECKS: PredefinedCheck[] = [
 ];
 
 export default function Home() {
-  const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x2fF07e0213Bf4653C7B2f5b1e71f3d04be6005C4';
+  const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f';
   const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
   const EXPLORER_URL = process.env.NEXT_PUBLIC_EXPLORER_URL || 'https://sepolia.etherscan.io';
 
