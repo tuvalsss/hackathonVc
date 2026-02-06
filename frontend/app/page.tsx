@@ -169,10 +169,10 @@ export default function Home() {
     setTimeout(poll, 3000);
   };
 
-  const triggerWorkflow = async (checkId?: string) => {
+  const connectWallet = async () => {
     if (!window.ethereum) {
-      setError('Please install MetaMask');
-      return;
+      setError('Please install MetaMask browser extension');
+      return false;
     }
 
     try {
@@ -181,13 +181,13 @@ export default function Home() {
 
       const provider = new ethers.BrowserProvider(window.ethereum);
       await provider.send('eth_requestAccounts', []);
-      const signer = await provider.getSigner();
-      setWalletConnected(true);
-
+      
+      // Check network
       const network = await provider.getNetwork();
       const chainId = Number(network.chainId);
+      
       if (chainId !== 11155111) {
-        setError(`Wrong network detected (${chainId}). Attempting to switch to Sepolia...`);
+        setError(`Switching to Sepolia testnet...`);
         
         try {
           // Try to switch to Sepolia
@@ -196,18 +196,22 @@ export default function Home() {
             params: [{ chainId: '0xaa36a7' }], // Sepolia = 11155111 = 0xaa36a7
           });
           
-          // Wait a bit for the switch
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Wait for switch
+          await new Promise(resolve => setTimeout(resolve, 1500));
           
-          // Retry the workflow
+          // Verify switch
           const newNetwork = await provider.getNetwork();
           if (Number(newNetwork.chainId) !== 11155111) {
-            setError('Please manually switch to Sepolia testnet in MetaMask');
+            setError('❌ Please approve network switch in MetaMask popup');
             setWorkflowStatus('error');
-            return;
+            return false;
           }
           
           setError(null);
+          setWalletConnected(true);
+          setWorkflowStatus('idle');
+          return true;
+          
         } catch (switchError: any) {
           // If Sepolia is not added, try to add it
           if (switchError.code === 4902) {
@@ -226,18 +230,71 @@ export default function Home() {
                   blockExplorerUrls: ['https://sepolia.etherscan.io']
                 }]
               });
+              
+              setWalletConnected(true);
+              setWorkflowStatus('idle');
+              return true;
             } catch (addError) {
-              setError('Failed to add Sepolia network. Please add manually in MetaMask.');
+              setError('❌ Failed to add Sepolia network');
               setWorkflowStatus('error');
-              return;
+              return false;
             }
-          } else {
-            setError(`Please switch to Sepolia testnet manually in MetaMask. Current: ${chainId}`);
+          } else if (switchError.code === 4001) {
+            setError('❌ You rejected the network switch. Please approve it in MetaMask.');
             setWorkflowStatus('error');
-            return;
+            return false;
+          } else {
+            setError(`❌ Failed to switch network. Please switch to Sepolia manually in MetaMask.`);
+            setWorkflowStatus('error');
+            return false;
           }
         }
       }
+      
+      setWalletConnected(true);
+      setWorkflowStatus('idle');
+      return true;
+      
+    } catch (err: any) {
+      console.error('Connect error:', err);
+      if (err.code === 4001) {
+        setError('❌ Connection rejected. Please approve in MetaMask.');
+      } else {
+        setError(err.message || 'Failed to connect wallet');
+      }
+      setWorkflowStatus('error');
+      return false;
+    }
+  };
+
+  const triggerWorkflow = async (checkId?: string) => {
+    if (!window.ethereum) {
+      setError('Please install MetaMask');
+      return;
+    }
+
+    try {
+      setError(null);
+      
+      // First ensure wallet is connected and on correct network
+      if (!walletConnected) {
+        const connected = await connectWallet();
+        if (!connected) return;
+      }
+      
+      // Double check network
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const network = await provider.getNetwork();
+      const chainId = Number(network.chainId);
+      
+      if (chainId !== 11155111) {
+        setError('❌ Wrong network. Please click "Connect Wallet" button first.');
+        setWorkflowStatus('error');
+        return;
+      }
+
+      setWorkflowStatus('sending');
+      const signer = await provider.getSigner();
 
       setWorkflowStatus('sending');
 
@@ -354,11 +411,26 @@ export default function Home() {
           <p className="text-gray-400">
             Trustless Market Intelligence powered by Chainlink Functions
           </p>
-          <div className="mt-2 flex items-center justify-center gap-4 text-sm flex-wrap">
-            <span className="text-gray-500">Network: Sepolia</span>
-            <span className={`px-2 py-1 rounded ${walletConnected ? 'bg-green-900/50 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
-              {walletConnected ? 'Wallet Connected' : 'Wallet Not Connected'}
-            </span>
+          
+          <div className="mt-4 flex items-center justify-center gap-4 flex-wrap">
+            {!walletConnected ? (
+              <button
+                onClick={connectWallet}
+                disabled={workflowStatus === 'connecting'}
+                className="px-8 py-3 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 rounded-lg font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              >
+                {workflowStatus === 'connecting' ? '🔄 Connecting...' : '🦊 Connect MetaMask'}
+              </button>
+            ) : (
+              <div className="px-6 py-3 bg-green-900/50 border-2 border-green-500 rounded-lg flex items-center gap-3">
+                <span className="text-2xl">✅</span>
+                <div className="text-left">
+                  <div className="text-green-400 font-semibold">Wallet Connected</div>
+                  <div className="text-xs text-gray-400">Sepolia Testnet</div>
+                </div>
+              </div>
+            )}
+            
             <button 
               onClick={() => setShowOnboarding(!showOnboarding)}
               className="px-3 py-1 bg-blue-900/50 text-blue-300 rounded text-xs hover:bg-blue-800/50"
