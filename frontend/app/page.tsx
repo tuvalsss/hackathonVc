@@ -990,9 +990,14 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
                 <div className="flex items-center gap-2">
                   <p className="text-sm text-gray-400">Data Sources:</p>
                   <div className="flex gap-1 flex-wrap">
-                    {state.dataSources.split(',').filter(Boolean).map((source, idx) => (
-                      <span key={idx} className="px-2 py-0.5 bg-blue-900/50 text-blue-300 rounded text-xs">
-                        {source}
+                    {state.dataSources.split(/[+,]/).filter(Boolean).map((source, idx) => (
+                      <span key={idx} className={`px-2 py-0.5 rounded text-xs ${
+                        source.trim().includes('Polymarket') ? 'bg-purple-900/50 text-purple-300' :
+                        source.trim().includes('CoinGecko') ? 'bg-green-900/50 text-green-300' :
+                        source.trim().includes('CoinCap') ? 'bg-cyan-900/50 text-cyan-300' :
+                        'bg-blue-900/50 text-blue-300'
+                      }`}>
+                        {source.trim()}
                       </span>
                     ))}
                   </div>
@@ -1018,10 +1023,10 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
           <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
             <h2 className="text-xl font-semibold mb-2">Decision Score</h2>
             <div className="text-xs text-gray-400 mb-4 bg-slate-900/50 p-2 rounded">
-              <strong>What this means:</strong> Calculated from price volatility and cross-source deviation. 
-              Higher scores indicate higher market activity/risk.
-              <br/><strong>How to use it:</strong> Smart contracts, bots, and DAOs can read this score on-chain 
-              to trigger automated actions with verifiable, trustless data.
+              <strong>What this means:</strong> Calculated from crypto volatility, cross-source deviation, 
+              and prediction market activity (Polymarket). Higher scores = higher market activity/risk.
+              <br/><strong>How to use it:</strong> Smart contracts, bots, DAOs, and prediction market platforms 
+              can read this score on-chain for automated, verifiable decision-making.
             </div>
             
             {loading ? (
@@ -1080,6 +1085,35 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
           </div>
         </div>
 
+        {/* API Integration */}
+        <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 mb-6">
+          <h2 className="text-xl font-semibold mb-3">API Integration</h2>
+          <p className="text-sm text-gray-400 mb-4">
+            Use the Oracle Data API to integrate AutoSentinel intelligence into your applications. 
+            Returns on-chain verified data combined with live Polymarket prediction market data.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div className="bg-slate-900/50 rounded-lg p-3">
+              <div className="text-blue-400 font-mono text-xs mb-1">GET /api/oracle-data</div>
+              <div className="text-gray-400 text-xs">Full intelligence: on-chain + Polymarket + crypto prices</div>
+            </div>
+            <div className="bg-slate-900/50 rounded-lg p-3">
+              <div className="text-purple-400 font-mono text-xs mb-1">GET /api/oracle-data?source=polymarket</div>
+              <div className="text-gray-400 text-xs">Live prediction market data: top markets, volumes, outcomes</div>
+            </div>
+            <div className="bg-slate-900/50 rounded-lg p-3">
+              <div className="text-green-400 font-mono text-xs mb-1">GET /api/oracle-data?source=onchain</div>
+              <div className="text-gray-400 text-xs">Verified on-chain data: prices, scores, request history</div>
+            </div>
+          </div>
+          <div className="mt-3 bg-slate-900/70 rounded-lg p-3">
+            <div className="text-xs text-gray-400 mb-1">Example usage:</div>
+            <code className="text-xs text-green-400 font-mono">
+              curl http://157.180.26.112:3005/api/oracle-data | jq .intelligence
+            </code>
+          </div>
+        </div>
+
         {/* Quick Actions */}
         <div className="flex flex-wrap gap-4 justify-center">
           <button 
@@ -1119,6 +1153,7 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
                 <span className="px-3 py-1 bg-blue-900/30 rounded-full">🤖 AI-Powered Translation</span>
                 <span className="px-3 py-1 bg-purple-900/30 rounded-full">⚡ Chainlink Functions</span>
                 <span className="px-3 py-1 bg-green-900/30 rounded-full">✅ On-Chain Verification</span>
+                <span className="px-3 py-1 bg-pink-900/30 rounded-full">📊 Polymarket Data</span>
               </div>
             </div>
 
