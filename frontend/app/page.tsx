@@ -379,27 +379,43 @@ export default function Home() {
     triggerWorkflow(checkId);
   };
 
-  const handleNaturalLanguage = () => {
+  const handleNaturalLanguage = async () => {
     if (!naturalLanguageInput.trim()) {
       setError('Please enter a query');
       return;
     }
     
-    // In a real implementation, this would translate via OpenAI to predefined checks
-    // For now, map to closest predefined check
-    const input = naturalLanguageInput.toLowerCase();
-    let mappedCheck = 'market_risk';
-    
-    if (input.includes('deviation') || input.includes('difference')) {
-      mappedCheck = 'price_deviation';
-    } else if (input.includes('volatil') || input.includes('rapid')) {
-      mappedCheck = 'volatility_alert';
-    } else if (input.includes('confirm') || input.includes('verify')) {
-      mappedCheck = 'multi_source_confirm';
+    try {
+      setError('🤖 Translating your query with AI...');
+      setWorkflowStatus('connecting');
+      
+      // Call our API to translate the query using AI
+      const response = await fetch('/api/translate-query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: naturalLanguageInput })
+      });
+      
+      const data = await response.json();
+      
+      if (data.checkId) {
+        setSelectedCheck(data.checkId);
+        setError(`✅ Mapped to: ${PREDEFINED_CHECKS.find(c => c.id === data.checkId)?.name} (via ${data.provider})`);
+        
+        // Wait a moment to show the mapping
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Now trigger the workflow
+        triggerWorkflow(data.checkId);
+      } else {
+        setError('Failed to translate query. Try again or select a predefined check.');
+        setWorkflowStatus('idle');
+      }
+    } catch (err) {
+      console.error('Natural language error:', err);
+      setError('Failed to process query. Please try a predefined check instead.');
+      setWorkflowStatus('idle');
     }
-    
-    setSelectedCheck(mappedCheck);
-    triggerWorkflow(mappedCheck);
   };
 
   useEffect(() => {
@@ -725,15 +741,17 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
               
               <button
                 onClick={handleNaturalLanguage}
-                disabled={workflowStatus === 'pending' || workflowStatus === 'sending' || !naturalLanguageInput.trim()}
+                disabled={workflowStatus === 'pending' || workflowStatus === 'sending' || workflowStatus === 'connecting' || !naturalLanguageInput.trim()}
                 className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Execute Query
+                {workflowStatus === 'connecting' ? '🤖 Processing with AI...' : 'Execute Query'}
               </button>
               
-              <p className="text-xs text-gray-500">
-                Your query will be mapped to: <strong className="text-blue-400">{selectedCheck || 'market_risk'}</strong> check
-              </p>
+              {selectedCheck && (
+                <p className="text-xs text-green-400">
+                  ✅ Mapped to: <strong>{PREDEFINED_CHECKS.find(c => c.id === selectedCheck)?.name}</strong>
+                </p>
+              )}
             </div>
           </div>
         )}
