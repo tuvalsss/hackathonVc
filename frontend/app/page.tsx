@@ -137,8 +137,9 @@ export default function Home() {
       setWalletConnected(true);
 
       const network = await provider.getNetwork();
-      if (network.chainId !== 11155111n) {
-        setError('Please switch to Sepolia testnet');
+      const chainId = Number(network.chainId);
+      if (chainId !== 11155111) {
+        setError(`Please switch to Sepolia testnet. Current network: ${chainId}`);
         setWorkflowStatus('error');
         return;
       }
