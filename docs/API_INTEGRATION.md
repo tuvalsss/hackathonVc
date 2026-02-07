@@ -330,13 +330,64 @@ The `aggregatedScore` (0-100) represents:
 ## Data Sources
 
 Currently fetches from:
-- **CoinGecko API** - `/simple/price` endpoint
-- **CoinCap API** - `/v2/assets` endpoint
+- **CoinGecko API** - `/simple/price` endpoint (ETH/BTC prices)
+- **CoinCap API** - `/v2/assets` endpoint (cross-validation prices)
+- **Polymarket API** - `/markets` endpoint (prediction market activity)
 
 Score calculation considers:
-1. Price deviation between sources
-2. Historical volatility patterns
-3. Multi-source consensus
+1. Price deviation between CoinGecko and CoinCap
+2. Prediction market volume and activity from Polymarket
+3. Multi-source consensus across all three providers
+
+## Oracle Data REST API
+
+In addition to direct smart contract interaction, AutoSentinel provides a REST API:
+
+```
+GET /api/oracle-data                      # Full intelligence data
+GET /api/oracle-data?source=onchain       # On-chain verified data only
+GET /api/oracle-data?source=polymarket    # Live Polymarket data only
+```
+
+Example response (`GET /api/oracle-data`):
+```json
+{
+  "onchain": {
+    "priceETH": 2032.05,
+    "priceBTC": 69922,
+    "aggregatedScore": 55,
+    "thresholdTriggered": false,
+    "decisionReason": "Markets stable",
+    "dataSources": "CoinGecko+Polymarket",
+    "verified": true
+  },
+  "polymarket": {
+    "topByVolume": [...],
+    "totalVolume": 6593535,
+    "marketCount": 10
+  },
+  "intelligence": {
+    "riskScore": 55,
+    "riskLevel": "LOW",
+    "cryptoPrices": { "ETH": 2032.05, "BTC": 69922 },
+    "predictionMarkets": {
+      "totalVolume": 6593535,
+      "activeMarkets": 10,
+      "topMarkets": [...]
+    },
+    "dataSources": ["CoinGecko", "Polymarket"]
+  },
+  "meta": {
+    "contract": "0xB1C85052CB557A20Cb036d8bA02cBC05A22e070f",
+    "network": "sepolia"
+  }
+}
+```
+
+Usage:
+```bash
+curl http://157.180.26.112:3005/api/oracle-data | jq .intelligence
+```
 
 ---
 

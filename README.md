@@ -100,32 +100,51 @@ Important: AI only translates text to parameters. The engine remains determinist
 
 What It Does:
 - Fetches real-time cryptocurrency prices from CoinGecko and CoinCap
-- Computes decision scores based on deviation and volatility
+- Fetches prediction market data from Polymarket (volumes, top outcomes)
+- Computes decision scores based on deviation, volatility, and prediction market activity
 - Executes trustlessly on decentralized oracle network
 - Returns verified results to smart contract
 
 Source Code Location: `chainlink-functions/source.js`
 
 Key Capabilities Demonstrated:
-- HTTP Requests (CoinGecko + CoinCap APIs)
+- HTTP Requests (CoinGecko + CoinCap + Polymarket APIs)
 - Compute (JavaScript execution off-chain)
 - Chain Write (Updates on-chain state via callback)
-- Multi-Source Aggregation
+- Multi-Source Aggregation (crypto + prediction markets)
 - Error Handling and Fallbacks
 
 ### 3. Real-Time Data Aggregation
 
 Data Sources:
-- CoinGecko API (`/simple/price` endpoint)
-- CoinCap API (`/v2/assets` endpoint)
+- CoinGecko API (`/simple/price` endpoint) - crypto prices
+- CoinCap API (`/v2/assets` endpoint) - cross-validation prices
+- Polymarket API (`/markets` endpoint) - prediction market activity
 
 Aggregation Logic:
-- Cross-validates prices between sources
-- Calculates deviation percentage
+- Cross-validates prices between CoinGecko and CoinCap
+- Calculates deviation percentage between sources
+- Factors in prediction market volume as a market activity indicator
 - Detects anomalies and discrepancies
 - Provides consensus-based results
 
-### 4. On-Chain Verification
+### 4. Oracle Data API
+
+The system exposes a REST API for external integration:
+
+```
+GET /api/oracle-data              # Full intelligence (on-chain + Polymarket + combined)
+GET /api/oracle-data?source=onchain     # On-chain verified data only
+GET /api/oracle-data?source=polymarket  # Live Polymarket data only
+```
+
+Response includes:
+- On-chain verified prices and scores from Chainlink Functions
+- Live Polymarket prediction market data (top markets, volumes, outcome probabilities)
+- Combined intelligence scoring with risk level assessment
+- Contract metadata and explorer links
+
+### 5. On-Chain Verification
 
 Every execution produces:
 - Unique requestId from Chainlink Functions
@@ -291,6 +310,8 @@ hackathonVc/
 │   │   ├── layout.tsx
 │   │   ├── globals.css
 │   │   └── api/
+│   │       ├── oracle-data/
+│   │       │   └── route.ts
 │   │       └── translate-query/
 │   │           └── route.ts
 │   ├── public/
@@ -368,8 +389,9 @@ contract Treasury {
 
 ### Data Integrity
 
-- Fetches from 2+ independent sources
-- Cross-validates all data points
+- Fetches from 3 independent sources (CoinGecko, CoinCap, Polymarket)
+- Cross-validates crypto price data points
+- Incorporates prediction market signals for broader market context
 - Detects and flags discrepancies
 - Stores verification proof on-chain
 
@@ -483,6 +505,7 @@ Copyright (c) 2026 QuanticaLab & Tuval Zvigerbi. All Rights Reserved.
 - Google: For Gemini Pro API
 - Anthropic: For Claude API
 - CoinGecko & CoinCap: For reliable market data APIs
+- Polymarket: For prediction market data
 - Ethereum Foundation: For the Sepolia testnet
 
 ## Get Started

@@ -13,9 +13,9 @@ AutoSentinel is a deterministic decision engine that combines Chainlink Function
 
 **Our Solution:** AutoSentinel leverages Chainlink Functions + AI to create unprecedented flexibility:
 
-1. **HTTP Fetch Capability** - Pulls real-time price data from multiple sources (CoinGecko, CoinCap) for redundancy and manipulation resistance.
+1. **HTTP Fetch Capability** - Pulls real-time price data from multiple sources (CoinGecko, CoinCap) and prediction market data from Polymarket for redundancy, manipulation resistance, and broader market context.
 
-2. **Compute Capability** - Applies sophisticated decision logic off-chain, calculating price deviations, aggregating multi-source data, and generating a decision score based on configurable thresholds.
+2. **Compute Capability** - Applies sophisticated decision logic off-chain, calculating price deviations, aggregating multi-source data, factoring in prediction market activity, and generating a decision score based on configurable thresholds.
 
 3. **Chain Write Capability** - Executes transparent, verifiable state updates on-chain only when meaningful thresholds are exceeded, optimizing for gas efficiency.
 
@@ -29,10 +29,10 @@ AutoSentinel is a deterministic decision engine that combines Chainlink Function
 AI enhances UX by translating natural language ("Is ETH safe to trade?") into structured, deterministic decision types, then executes trustlessly via Chainlink Functions. The AI translates but doesn't execute - maintaining predictability while improving accessibility.
 
 **Chainlink Functions Usage:**
-- ✅ **HTTP:** Fetches from CoinGecko + CoinCap APIs
-- ✅ **Compute:** Off-chain score calculation, multi-source aggregation
-- ✅ **Chain Write:** Updates on-chain state with verified results
-- ✅ **Trustless:** No single server controls computation
+- HTTP: Fetches from CoinGecko + CoinCap + Polymarket APIs
+- Compute: Off-chain score calculation, multi-source aggregation, prediction market analysis
+- Chain Write: Updates on-chain state with verified results
+- Trustless: No single server controls computation
 
 **Real-World Value:**
 - Trading bots use API for risk scoring
@@ -218,6 +218,7 @@ This is **essential integration**, not superficial.
 - **Google** - For Gemini Pro API providing fallback AI capabilities
 - **Anthropic** - For Claude API as additional fallback
 - **CoinGecko** & **CoinCap** - For reliable, free market data APIs
+- **Polymarket** - For prediction market data
 - **Ethereum Foundation** - For Sepolia testnet infrastructure
 
 ---
@@ -226,4 +227,4 @@ This is **essential integration**, not superficial.
 
 © 2026 **QuanticaLab** & **Tuval Zvigerbi**. All Rights Reserved.
 
-Built with ❤️ using Chainlink Functions, OpenAI, Google AI, Anthropic Claude, and Ethereum.
+Built with Chainlink Functions, OpenAI, Google AI, Anthropic Claude, Polymarket, and Ethereum.
