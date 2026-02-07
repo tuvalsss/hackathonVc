@@ -101,6 +101,8 @@ export default function Home() {
   const [selectedCheck, setSelectedCheck] = useState<string | null>(null);
   const [naturalLanguageInput, setNaturalLanguageInput] = useState('');
   const [showApiDocs, setShowApiDocs] = useState(false);
+  const [polymarketData, setPolymarketData] = useState<any>(null);
+  const [polyLoading, setPolyLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -139,6 +141,21 @@ export default function Home() {
       setLoading(false);
     }
   }, [CONTRACT_ADDRESS, RPC_URL]);
+
+  const fetchPolymarketData = useCallback(async () => {
+    setPolyLoading(true);
+    try {
+      const res = await fetch('/api/oracle-data?source=polymarket');
+      if (res.ok) {
+        const data = await res.json();
+        setPolymarketData(data.polymarket);
+      }
+    } catch (err) {
+      console.error('Failed to fetch Polymarket data:', err);
+    } finally {
+      setPolyLoading(false);
+    }
+  }, []);
 
   const pollRequestStatus = async (requestId: string) => {
     // Use multiple RPC providers for reliability
@@ -484,9 +501,11 @@ export default function Home() {
 
   useEffect(() => {
     fetchData();
+    fetchPolymarketData();
     const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    const polyInterval = setInterval(fetchPolymarketData, 60000);
+    return () => { clearInterval(interval); clearInterval(polyInterval); };
+  }, [fetchData, fetchPolymarketData]);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -1083,6 +1102,79 @@ if (state.aggregatedScore > 75 && state.thresholdTriggered) {
             <p className="text-lg font-bold text-yellow-400">Sepolia</p>
             <p className="text-sm text-gray-400">Network</p>
           </div>
+        </div>
+
+        {/* Prediction Markets (Polymarket) */}
+        <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Prediction Markets</h2>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 bg-purple-900/50 text-purple-300 rounded text-xs">Polymarket</span>
+              {polymarketData && (
+                <span className="text-xs text-gray-400">
+                  {polymarketData.marketCount || polymarketData.count || 0} markets | ${((polymarketData.totalVolume || 0) / 1000000).toFixed(1)}M volume
+                </span>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-gray-400 mb-4">
+            Live prediction market data feeds into the decision score. High market activity and volume
+            increase the score, reflecting broader market sentiment beyond just crypto prices.
+          </p>
+
+          {polyLoading && !polymarketData ? (
+            <div className="animate-pulse space-y-3">
+              <div className="h-16 bg-slate-700 rounded"></div>
+              <div className="h-16 bg-slate-700 rounded"></div>
+              <div className="h-16 bg-slate-700 rounded"></div>
+            </div>
+          ) : polymarketData && (polymarketData.topByVolume?.length > 0 || polymarketData.markets?.length > 0) ? (
+            <div className="space-y-2">
+              {(polymarketData.topByVolume || polymarketData.markets || []).slice(0, 6).map((market: any, idx: number) => {
+                const prices = market.outcomePrices || [];
+                const yesPrice = typeof prices[0] === 'number' ? prices[0] : parseFloat(prices[0] || '0');
+                const noPrice = typeof prices[1] === 'number' ? prices[1] : parseFloat(prices[1] || '0');
+                const outcomes = market.outcomes || ['Yes', 'No'];
+                return (
+                  <div key={market.id || idx} className="bg-slate-900/50 rounded-lg p-3 border border-slate-700/50">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-200 truncate">{market.question}</p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-xs text-gray-500">{market.category || 'General'}</span>
+                          <span className="text-xs text-gray-500">Vol: ${market.volume >= 1000000 ? (market.volume / 1000000).toFixed(1) + 'M' : market.volume >= 1000 ? (market.volume / 1000).toFixed(0) + 'K' : Math.round(market.volume)}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        {yesPrice > 0 && (
+                          <div className="text-center px-2 py-1 rounded bg-green-900/30 border border-green-800/30">
+                            <div className="text-xs text-gray-400">{outcomes[0] || 'Yes'}</div>
+                            <div className="text-sm font-bold text-green-400">{(yesPrice * 100).toFixed(0)}%</div>
+                          </div>
+                        )}
+                        {noPrice > 0 && (
+                          <div className="text-center px-2 py-1 rounded bg-red-900/30 border border-red-800/30">
+                            <div className="text-xs text-gray-400">{outcomes[1] || 'No'}</div>
+                            <div className="text-sm font-bold text-red-400">{(noPrice * 100).toFixed(0)}%</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="text-xs text-gray-500 text-center pt-2">
+                Market activity from Polymarket is factored into the on-chain decision score via Chainlink Functions
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-500">
+              <p>No prediction market data available</p>
+              <button onClick={fetchPolymarketData} className="mt-2 text-sm text-blue-400 hover:text-blue-300">
+                Retry
+              </button>
+            </div>
+          )}
         </div>
 
         {/* API Integration */}
